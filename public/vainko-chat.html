@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vainko Trainer — Sheller</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* Standalone page overrides */
+    html, body { height: 100%; overflow: hidden; }
+    body { display: flex; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <div class="vainko-chat-sidebar">
+    <div class="vainko-chat-sidebar-header"><h3>Lessons</h3></div>
+    <div class="vainko-lesson-list">
+      <div class="vainko-lesson-item" onclick="startLesson('navigation', this)">📂 Navigation</div>
+      <div class="vainko-lesson-item" onclick="startLesson('permissions', this)">🔒 Permissions</div>
+      <div class="vainko-lesson-item" onclick="startLesson('networking', this)">🌐 Networking</div>
+      <div class="vainko-lesson-item" onclick="startLesson('kali-tools', this)">🐉 Kali Tools</div>
+      <div class="vainko-lesson-item" onclick="startLesson('scripting', this)">📝 Scripting</div>
+      <div class="vainko-lesson-item" onclick="startLesson('packages', this)">📦 Package Management</div>
+    </div>
+  </div>
+
+  <div class="vainko-chat-main">
+    <div class="vainko-chat-topbar">
+      <div class="vainko-chat-topbar-left">
+        <a href="/" class="vainko-back-btn">← Back</a>
+        <span class="vainko-chat-logo">🤖 Vainko</span>
+      </div>
+      <span class="skill-badge" id="skill-badge-el"></span>
+    </div>
+    <div class="vainko-chat-messages" id="vainko-messages"></div>
+    <div class="vainko-chat-inputbar">
+      <input type="text" id="vainko-input" placeholder="Ask Vainko anything..." onkeydown="if(event.key==='Enter')sendMessage()" />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const skillLevel = localStorage.getItem('sheller_skill_level') || 'beginner';
+
+    // Set badge
+    const badgeEl = document.getElementById('skill-badge-el');
+    badgeEl.className = 'skill-badge ' + skillLevel;
+    badgeEl.textContent = skillLevel === 'experienced' ? 'Experienced' : skillLevel === 'intermediate' ? 'Some Experience' : 'Beginner';
+
+    const lessonPrompts = {
+      'navigation':  'Teach me about terminal navigation — cd, ls, pwd, and moving around the filesystem.',
+      'permissions': 'Teach me about file permissions in Linux — chmod, chown, and understanding permission groups.',
+      'networking':  'Teach me about networking commands — ping, curl, wget, ifconfig, netstat, and more.',
+      'kali-tools':  'Teach me about essential Kali Linux tools — nmap, nikto, john, and other security tools.',
+      'scripting':   'Teach me bash scripting — variables, loops, conditionals, and writing simple scripts.',
+      'packages':    'Teach me about package management — apt, dpkg, and managing software in Linux.',
+    };
+
+    // Greeting
+    let greeting = '';
+    if (skillLevel === 'beginner') {
+      greeting = "Hey! 👋 Let's start from zero — I'll walk you through everything step by step. Pick a lesson from the sidebar or just ask me anything!";
+    } else if (skillLevel === 'intermediate') {
+      greeting = "Welcome back! 👋 Let's level up what you already know. Pick a topic from the sidebar or ask me anything!";
+    } else {
+      greeting = "Hey! 👋 I'll keep it advanced — just ask me anything or pick a challenge from the sidebar.";
+    }
+    appendMsg('assistant', greeting);
+
+    function appendMsg(role, content) {
+      const container = document.getElementById('vainko-messages');
+      const div = document.createElement('div');
+      div.className = 'vainko-msg ' + role;
+      const processed = content.replace(/\[CMD:(.*?)\]/g, (_, cmd) => {
+        const escaped = cmd.replace(/'/g, "\\'");
+        return `<span class="cmd-chip" onclick="navigator.clipboard.writeText('${escaped}')" title="Click to copy">${cmd}</span>`;
+      });
+      div.innerHTML = processed;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('vainko-input');
+      const message = input.value.trim();
+      if (!message) return;
+      input.value = '';
+      appendMsg('user', message);
+
+      const typingDiv = document.createElement('div');
+      typingDiv.className = 'vainko-msg assistant vainko-typing';
+      typingDiv.textContent = 'Vainko is thinking...';
+      typingDiv.id = 'vainko-typing';
+      document.getElementById('vainko-messages').appendChild(typingDiv);
+      document.getElementById('vainko-messages').scrollTop = document.getElementById('vainko-messages').scrollHeight;
+
+      try {
+        const res = await fetch('/api/vainko', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, os: 'linux', skill: skillLevel }),
+        });
+        const data = await res.json();
+        const t = document.getElementById('vainko-typing');
+        if (t) t.remove();
+        appendMsg('assistant', data.reply || data.error || 'No response.');
+      } catch (err) {
+        const t = document.getElementById('vainko-typing');
+        if (t) t.remove();
+        appendMsg('assistant', 'Error contacting Vainko.');
+      }
+    }
+
+    function startLesson(id, el) {
+      document.querySelectorAll('.vainko-lesson-item').forEach(i => i.classList.remove('active'));
+      if (el) el.classList.add('active');
+      document.getElementById('vainko-messages').innerHTML = '';
+      const prompt = lessonPrompts[id] || 'Tell me about this topic.';
+      appendMsg('user', prompt);
+
+      // Send to API
+      (async () => {
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'vainko-msg assistant vainko-typing';
+        typingDiv.textContent = 'Vainko is thinking...';
+        typingDiv.id = 'vainko-typing';
+        document.getElementById('vainko-messages').appendChild(typingDiv);
+
+        try {
+          const res = await fetch('/api/vainko', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: prompt, os: 'linux', skill: skillLevel }),
+          });
+          const data = await res.json();
+          const t = document.getElementById('vainko-typing');
+          if (t) t.remove();
+          appendMsg('assistant', data.reply || data.error || 'No response.');
+        } catch (err) {
+          const t = document.getElementById('vainko-typing');
+          if (t) t.remove();
+          appendMsg('assistant', 'Error contacting Vainko.');
+        }
+      })();
+    }
+  </script>
+</body>
+</html>

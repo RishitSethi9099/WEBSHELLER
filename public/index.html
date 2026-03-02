@@ -1,0 +1,279 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sheller &ndash; Cloud Terminal</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- xterm.js -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+
+    <!-- ══ SKILL LEVEL SURVEY MODAL ══════════════════════════════════════ -->
+    <div id="skill-survey-overlay" class="skill-survey-overlay" style="display:none;">
+      <div class="skill-survey-modal">
+        <div class="skill-survey-icon">🧠</div>
+        <h2>How comfortable are you with terminals?</h2>
+        <p class="skill-survey-sub">This helps Vainko personalize your experience.</p>
+        <div class="skill-survey-options">
+          <button class="skill-option" onclick="selectSkillLevel('beginner')">
+            <span class="skill-dot green"></span>
+            <div><strong>Complete Beginner</strong><span>Never used a terminal</span></div>
+          </button>
+          <button class="skill-option" onclick="selectSkillLevel('intermediate')">
+            <span class="skill-dot yellow"></span>
+            <div><strong>Some Experience</strong><span>Know basic commands</span></div>
+          </button>
+          <button class="skill-option" onclick="selectSkillLevel('experienced')">
+            <span class="skill-dot red"></span>
+            <div><strong>Experienced</strong><span>Just here to explore</span></div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 0: Auth (Login / Sign Up) ════════════════════════════════ -->
+    <div id="auth" class="screen active">
+      <div class="picker-bg-grid"></div>
+
+      <header class="picker-header">
+        <div class="logo">
+          <span class="logo-bracket">[</span>sheller<span class="logo-bracket">]</span>
+        </div>
+        <p class="logo-tagline">Cloud Terminal Platform</p>
+      </header>
+
+      <main class="auth-main">
+        <div class="auth-card">
+          <div class="auth-tabs">
+            <button type="button" id="auth-tab-login"  class="auth-tab active">Log In</button>
+            <button type="button" id="auth-tab-signup" class="auth-tab">Sign Up</button>
+          </div>
+
+          <form id="auth-form" class="auth-form" autocomplete="on">
+            <div class="auth-field auth-username-field hidden" id="auth-username-wrap">
+              <label for="auth-username">Username</label>
+              <input id="auth-username" type="text" placeholder="coolhacker42" autocomplete="username" />
+            </div>
+            <div class="auth-field">
+              <label for="auth-email">Email</label>
+              <input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" required />
+            </div>
+            <div class="auth-field">
+              <label for="auth-password">Password</label>
+              <div class="auth-password-wrap">
+                <input id="auth-password" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="current-password" required />
+                <button type="button" class="auth-eye-btn" id="auth-eye-btn" onclick="togglePasswordVisibility()" title="Show password">
+                  <svg id="eye-open" class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <svg id="eye-closed" class="eye-icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <p id="auth-error" class="auth-error hidden"></p>
+            <button id="auth-submit-btn" type="submit" class="auth-submit">Log In</button>
+            <button type="button" class="auth-bypass" onclick="devBypass()">Skip Login (Demo)</button>
+          </form>
+        </div>
+      </main>
+    </div><!-- /#auth -->
+
+
+    <!-- ══ SCREEN 1: OS Picker ════════════════════════════════════════════ -->
+    <div id="picker" class="screen">
+      <div class="picker-bg-grid"></div>
+
+      <!-- Logout floating top-right -->
+      <button class="picker-logout-btn" title="Log out" onclick="handleLogout()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Log&nbsp;Out
+      </button>
+
+      <header class="picker-header">
+        <div class="logo">
+          <span class="logo-bracket">[</span>sheller<span class="logo-bracket">]</span>
+        </div>
+        <p class="logo-tagline">Cloud Terminal Platform</p>
+      </header>
+
+      <main class="picker-main">
+        <h1 class="picker-title">Select an Environment</h1>
+        <p class="picker-subtitle">A fresh isolated container will be spun up for your session.</p>
+
+        <div class="os-grid">
+
+          <!-- Kali Linux -->
+          <button class="os-card" data-os="kali" onclick="selectOS('kali')">
+            <div class="os-card-glow kali-glow"></div>
+            <div class="os-icon">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="32" cy="32" r="30" stroke="currentColor" stroke-width="2" fill="none"/>
+                <path d="M20 16 L20 48 M20 32 L36 20 M20 32 L36 44" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="44" cy="20" r="4" fill="currentColor" opacity="0.8"/>
+              </svg>
+            </div>
+            <h2 class="os-name">Kali Linux</h2>
+            <p class="os-desc">Penetration testing &amp; security research distro with full toolset</p>
+            <div class="os-meta">
+              <span class="os-tag">kalilinux/kali-rolling</span>
+              <span class="os-tag">bash</span>
+            </div>
+            <div class="os-arrow">&#8594;</div>
+          </button>
+
+          <!-- Ubuntu -->
+          <button class="os-card" data-os="ubuntu" onclick="selectOS('ubuntu')">
+            <div class="os-card-glow ubuntu-glow"></div>
+            <div class="os-icon">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="32" cy="32" r="30" stroke="currentColor" stroke-width="2" fill="none"/>
+                <circle cx="32" cy="32" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+                <circle cx="32" cy="10" r="5" fill="currentColor" opacity="0.9"/>
+                <circle cx="51" cy="43" r="5" fill="currentColor" opacity="0.9"/>
+                <circle cx="13" cy="43" r="5" fill="currentColor" opacity="0.9"/>
+              </svg>
+            </div>
+            <h2 class="os-name">Ubuntu</h2>
+            <p class="os-desc">General purpose Linux for development, scripting, and exploration</p>
+            <div class="os-meta">
+              <span class="os-tag">ubuntu:latest</span>
+              <span class="os-tag">bash</span>
+            </div>
+            <div class="os-arrow">&#8594;</div>
+          </button>
+
+          <!-- PowerShell -->
+          <button class="os-card" data-os="powershell" onclick="selectOS('powershell')">
+            <div class="os-card-glow ps-glow"></div>
+            <div class="os-icon">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="4" y="12" width="56" height="40" rx="4" stroke="currentColor" stroke-width="2" fill="none"/>
+                <path d="M14 24 L28 32 L14 40" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M32 40 L50 40" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h2 class="os-name">PowerShell</h2>
+            <p class="os-desc">Cross-platform PowerShell (pwsh) running in a Windows container</p>
+            <div class="os-meta">
+              <span class="os-tag">mcr.microsoft.com/powershell</span>
+              <span class="os-tag">pwsh</span>
+            </div>
+            <div class="os-arrow">&#8594;</div>
+          </button>
+
+          <!-- Vainko Trainer -->
+          <button class="os-card os-card-vainko" data-os="vainko" onclick="selectVainko()">
+            <div class="os-card-glow vainko-glow"></div>
+            <div class="os-icon vainko-icon-emoji">🤖</div>
+            <h2 class="os-name">Vainko Trainer</h2>
+            <p class="os-desc">AI-guided terminal learning. No environment needed&nbsp;&mdash; just chat.</p>
+            <div class="os-meta">
+              <span class="os-tag os-tag-ai">AI</span>
+              <span class="os-tag os-tag-ai">Beginner Friendly</span>
+            </div>
+            <div class="os-arrow">&#8594;</div>
+          </button>
+
+        </div><!-- /os-grid -->
+      </main>
+
+      <footer class="picker-footer">
+        <span>Containers auto-terminated after 1 hour of inactivity</span>
+        <span class="dot-sep">&#183;</span>
+        <span>512 MB RAM / 1 vCPU per session</span>
+        <span class="dot-sep">&#183;</span>
+        <span>Persistent /root/workspace volume</span>
+      </footer>
+    </div><!-- /#picker -->
+
+
+    <!-- ══ SCREEN 2: Loading / Booting ════════════════════════════════════ -->
+    <div id="loader" class="screen">
+      <div class="loader-box">
+        <div id="loader-spinner" class="loader-spinner"></div>
+        <p id="loader-status" class="loader-status">Initialising&#8230;</p>
+        <p id="loader-hint" class="loader-hint">Spinning up your container&hellip;</p>
+        <button id="loader-back-btn" class="auth-submit" style="display:none; margin-top:1rem; background:#e11d48;" onclick="loaderGoBack()">&#8592; Go Back</button>
+      </div>
+    </div>
+
+
+    <!-- ══ SCREEN 3: Terminal ═════════════════════════════════════════════ -->
+    <div id="terminal-page" class="screen">
+      <header class="term-header">
+        <div class="term-header-left">
+          <div class="win-controls">
+            <button class="win-btn win-close" title="End session" onclick="endSession()"></button>
+            <button class="win-btn win-min"   title="Minimise"></button>
+            <button class="win-btn win-max"   title="Maximise" onclick="toggleFullscreen()"></button>
+          </div>
+          <span class="term-title" id="term-title">sheller</span>
+        </div>
+        <div class="term-header-center">
+          <span class="term-status-dot"   id="term-status-dot"></span>
+          <span class="term-status-label" id="term-status-label">Connecting&#8230;</span>
+        </div>
+        <div class="term-header-right">
+          <span class="user-email" id="user-email-display" style="display:none"></span>
+          <button id="vainko-hint-toggle" class="term-btn term-btn-vainko-hint" title="Toggle Vainko ghost hints" onclick="toggleVainkoHints()">✨ Vainko</button>
+          <button class="term-btn term-btn-danger" title="End session and go back" onclick="endSession()">End&#160;Session</button>
+        </div>
+      </header>
+
+      <!-- Terminal body: xterm only (Vainko panel removed) -->
+      <div id="terminal-body" class="terminal-body">
+        <div id="xterm-mount"></div>
+      </div>
+
+      <!-- Ask Vainko floating button -->
+      <button id="ask-vainko-btn" class="ask-vainko-fab" onclick="openAskVainko()" tabindex="-1">⌘ Ask Vainko</button>
+
+      <!-- Ask Vainko inline popup -->
+      <div id="ask-vainko-popup" class="ask-vainko-popup hidden">
+        <div class="ask-vainko-popup-header">
+          <span>🤖 Ask Vainko</span>
+          <button onclick="closeAskVainko()">&#10005;</button>
+        </div>
+        <div id="ask-vainko-messages" class="ask-vainko-messages"></div>
+        <div class="ask-vainko-input-row">
+          <input type="text" id="ask-vainko-input" placeholder="Describe what you want to do…" onkeydown="if(event.key==='Enter')submitAskVainko()" />
+          <button onclick="submitAskVainko()">&rarr;</button>
+        </div>
+      </div>
+    </div><!-- /#terminal-page -->
+
+
+    <!-- ══ Error / timeout overlay ════════════════════════════════════════ -->
+    <div id="overlay" class="overlay hidden">
+      <div class="overlay-box">
+        <p id="overlay-msg"></p>
+        <button onclick="endSession()">Start New Session</button>
+      </div>
+    </div>
+
+    <!-- ══ Vainko Chat Full-Screen Overlay ═══════════════════════════════ -->
+    <div id="vainko-chat-overlay" class="vainko-chat-overlay hidden"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Sheller - Secure localhost web terminal with whitelisted commands"
+    />
+    <title>Sheller - Secure Web Terminal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <!-- xterm.js for proper terminal emulation -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="terminal-icon">🔐</div>
+          <h1>Sheller</h1>
+          <p class="subtitle">Secure Web Terminal</p>
+        </div>
+        <form id="login-form">
+          <div class="input-group">
+            <label for="password">Terminal Password</label>
+            <input
+              type="password"
+              id="password"
+              placeholder="Enter password..."
+              autocomplete="current-password"
+              autofocus
+            />
+          </div>
+          <button type="submit" class="btn-primary">
+            <span class="btn-text">Access Terminal</span>
+            <span class="btn-icon">→</span>
+          </button>
+          <p id="login-error" class="error-message"></p>
+        </form>
+        <div class="security-badge">
+          <span class="badge-icon">🔒</span>
+          <span class="badge-text">Localhost Only • Secure Connection</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Terminal -->
+    <div id="terminal-container" class="hidden">
+      <!-- Header -->
+      <header class="terminal-header">
+        <div class="header-left">
+          <div class="window-controls">
+            <span
+              class="control close"
+              title="Logout"
+              onclick="logout()"
+            ></span>
+            <span class="control minimize"></span>
+            <span class="control maximize"></span>
+          </div>
+          <div class="terminal-title">
+            <span class="title-icon">⌨️</span>
+            <span>sheller@localhost</span>
+          </div>
+        </div>
+        <div class="header-center">
+          <div class="status-indicator" id="status-indicator">
+            <span class="status-dot online"></span>
+            <span class="status-text">Connected</span>
+          </div>
+        </div>
+        <div class="header-right">
+          <button
+            class="header-btn"
+            onclick="clearTerminal()"
+            title="Clear Screen"
+          >
+            <span>🗑️</span>
+          </button>
+          <button class="header-btn" onclick="showHelp()" title="Help">
+            <span>❓</span>
+          </button>
+          <button
+            class="header-btn logout-btn"
+            onclick="logout()"
+            title="Logout"
+          >
+            <span>🚪</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Terminal Body -->
+      <main class="terminal-body" id="terminal-body">
+        <div class="terminal-output" id="terminal-output">
+          <!-- Output will be inserted here -->
+        </div>
+      </main>
+
+      <!-- Input Area -->
+      <footer class="terminal-input-area">
+        <div class="input-wrapper">
+          <span class="prompt" id="prompt">
+            <span class="prompt-user">guest</span>
+            <span class="prompt-at">@</span>
+            <span class="prompt-host">sheller</span>
+            <span class="prompt-path" id="prompt-path">:~</span>
+            <span class="prompt-symbol">$</span>
+          </span>
+          <input
+            type="text"
+            id="command-input"
+            placeholder="Type a command... (try 'help')"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button
+            class="execute-btn"
+            onclick="executeCommand()"
+            title="Execute"
+          >
+            <span>⏎</span>
+          </button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Interactive SSH Terminal (xterm.js) -->
+    <div id="ssh-terminal-container" class="hidden">
+      <header class="terminal-header ssh-header">
+        <div class="header-left">
+          <div class="window-controls">
+            <span class="control close" title="Disconnect" onclick="disconnectSSH()"></span>
+            <span class="control minimize"></span>
+            <span class="control maximize"></span>
+          </div>
+          <div class="terminal-title">
+            <span class="title-icon">🔗</span>
+            <span id="ssh-title">SSH Terminal</span>
+          </div>
+        </div>
+        <div class="header-center">
+          <div class="status-indicator" id="ssh-status-indicator">
+            <span class="status-dot connecting"></span>
+            <span class="status-text" id="ssh-status-text">Connecting...</span>
+          </div>
+        </div>
+        <div class="header-right">
+          <button class="header-btn" onclick="disconnectSSH()" title="Disconnect">
+            <span>🔌</span>
+          </button>
+        </div>
+      </header>
+      <div id="ssh-terminal" class="ssh-terminal-body"></div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

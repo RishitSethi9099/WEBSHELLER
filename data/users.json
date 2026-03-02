@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1770979272374,
+    "username": "testuser",
+    "email": "test@example.com",
+    "password_hash": "$2b$10$wUFP0bIZa95jbRosqEEIOOJj1uTdWb2iB21xuzwVJ7oRmq9i9gq1m",
+    "preferred_terminal": "ubuntu",
+    "storage_used": 0,
+    "storage_limit": 1073741824,
+    "created_at": "2026-02-13T10:41:12.374Z"
+  },
+  {
+    "id": 1770979283690,
+    "username": "rishit",
+    "email": "rishit@sheller.com",
+    "password_hash": "$2b$10$WkdwIOAiEedgCc51yWHb2utsBInAyvqxFdFpulzDhAxh6ZTWQ0K7u",
+    "preferred_terminal": "ubuntu",
+    "storage_used": 0,
+    "storage_limit": 1073741824,
+    "created_at": "2026-02-13T10:41:23.690Z"
+  }
+]

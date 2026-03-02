@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VAINKO — Terminal Trainer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=JetBrains+Mono:wght@300;400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ── VAINKO DESIGN SYSTEM ── */
+        :root {
+            --primary: #00ff9d;
+            --primary-dim: rgba(0, 255, 157, 0.15);
+            --primary-glow: rgba(0, 255, 157, 0.4);
+            --secondary: #00b8ff;
+            --secondary-dim: rgba(0, 184, 255, 0.15);
+            --accent: #ff3e88;
+            --dark: #0c0f16;
+            --dark-2: #121826;
+            --dark-3: #1a2234;
+            --dark-4: #1e2a3f;
+            --border: rgba(0, 255, 157, 0.18);
+            --border-hover: rgba(0, 255, 157, 0.4);
+            --text: #e8eaf0;
+            --text-dim: rgba(232, 234, 240, 0.55);
+            --text-muted: rgba(232, 234, 240, 0.3);
+            --success: #00ff9d;
+            --warning: #ffbb00;
+            --error: #ff4444;
+            --radius: 8px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Syne', sans-serif;
+            background: var(--dark);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Ambient background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 60% 40% at 10% 20%, rgba(0,255,157,0.04) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 50% at 90% 80%, rgba(0,184,255,0.04) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── HEADER ── */
+        .vainko-header {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: rgba(12, 15, 22, 0.95);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(20px);
+            flex-shrink: 0;
+        }
+
+        .vainko-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .vainko-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 12px var(--primary-glow);
+            background: var(--dark-3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 14px;
+            color: var(--primary);
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .vainko-avatar::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            right: -1px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--success);
+            border: 2px solid var(--dark);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(0,255,157,0.4); }
+            50% { box-shadow: 0 0 0 4px rgba(0,255,157,0); }
+        }
+
+        .vainko-name {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 18px;
+            color: var(--primary);
+            text-shadow: 0 0 20px var(--primary-glow);
+            letter-spacing: 3px;
+        }
+
+        .vainko-tagline {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-top: 1px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .os-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: var(--primary-dim);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--primary);
+        }
+
+        .os-badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--primary);
+            animation: pulse-dot 1.5s ease-in-out infinite;
+        }
+
+        .header-btn {
+            padding: 6px 14px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .header-btn:hover {
+            border-color: var(--border-hover);
+            color: var(--primary);
+            background: var(--primary-dim);
+        }
+
+        /* ── MAIN LAYOUT ── */
+        .vainko-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── SIDEBAR ── */
+        .vainko-sidebar {
+            width: 220px;
+            flex-shrink: 0;
+            background: rgba(12, 15, 22, 0.8);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 16px 12px;
+            gap: 16px;
+        }
+
+        .sidebar-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebar-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 0 4px;
+        }
+
+        .module-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: var(--radius);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .module-item:hover {
+            border-color: var(--border);
+            background: var(--primary-dim);
+            color: var(--text);
+        }
+
+        .module-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .module-dot.green { background: var(--success); box-shadow: 0 0 6px var(--success); }
+        .module-dot.yellow { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+        .module-dot.blue { background: var(--secondary); box-shadow: 0 0 6px var(--secondary); }
+
+        /* Quick command chips */
+        .quick-commands {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .quick-cmd {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: rgba(18, 24, 38, 0.6);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-dim);
+            text-align: left;
+            width: 100%;
+        }
+
+        .quick-cmd:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-dim);
+            transform: translateX(2px);
+        }
+
+        .quick-cmd-icon {
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        /* ── CHAT AREA ── */
+        .vainko-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+        }
+
+        .chat-messages::-webkit-scrollbar { width: 5px; }
+        .chat-messages::-webkit-scrollbar-track { background: transparent; }
+        .chat-messages::-webkit-scrollbar-thumb { background: rgba(0,255,157,0.2); border-radius: 3px; }
+
+        /* Message bubbles */
+        .msg {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            animation: msg-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            max-width: 820px;
+        }
+
+        @keyframes msg-in {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg.user { flex-direction: row-reverse; align-self: flex-end; }
+
+        .msg-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            font-size: 10px;
+        }
+
+        .msg-avatar.vainko-av {
+            background: var(--dark-3);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            box-shadow: 0 0 10px rgba(0,255,157,0.2);
+        }
+
+        .msg-avatar.user-av {
+            background: var(--dark-3);
+            border: 1px solid var(--secondary);
+            color: var(--secondary);
+        }
+
+        .msg-bubble {
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 680px;
+            line-height: 1.65;
+            font-size: 13.5px;
+        }
+
+        .msg.vainko .msg-bubble {
+            background: rgba(18, 24, 38, 0.9);
+            border: 1px solid var(--border);
+            border-top-left-radius: 4px;
+            color: var(--text);
+        }
+
+        .msg.user .msg-bubble {
+            background: rgba(0, 184, 255, 0.1);
+            border: 1px solid rgba(0, 184, 255, 0.25);
+            border-top-right-radius: 4px;
+            color: var(--text);
+        }
+
+        /* Code blocks inside messages */
+        .msg-bubble code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            background: rgba(0,0,0,0.4);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary);
+            border: 1px solid rgba(0,255,157,0.15);
+        }
+
+        .msg-bubble pre {
+            margin: 10px 0;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(0,255,157,0.2);
+            border-radius: var(--radius);
+            padding: 12px;
+            overflow-x: auto;
+        }
+
+        .msg-bubble pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 12px;
+            color: var(--primary);
+        }
+
+        /* Clickable command chips in messages */
+        .cmd-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            margin: 3px 3px 3px 0;
+            border-radius: 4px;
+            background: rgba(0,255,157,0.08);
+            border: 1px solid rgba(0,255,157,0.3);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--primary);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .cmd-chip:hover {
+            background: rgba(0,255,157,0.18);
+            border-color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        .cmd-chip::before { content: '▶'; font-size: 8px; opacity: 0.7; }
+
+        /* Thinking indicator */
+        .thinking-msg .msg-bubble {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .thinking-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .thinking-dots span {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--primary);
+            animation: dot-bounce 1.2s ease-in-out infinite;
+        }
+
+        .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes dot-bounce {
+            0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+            40% { transform: translateY(-6px); opacity: 1; }
+        }
+
+        /* ── INPUT AREA ── */
+        .chat-input-area {
+            flex-shrink: 0;
+            padding: 16px 24px 20px;
+            background: rgba(12, 15, 22, 0.95);
+            border-top: 1px solid var(--border);
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--dark-3);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 14px;
+            transition: all 0.2s;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0,255,157,0.08);
+        }
+
+        .input-prefix {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--primary);
+            flex-shrink: 0;
+            opacity: 0.7;
+        }
+
+        #vainko-input {
+            flex: 1;
+            background: none;
+            border: none;
+            outline: none;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            caret-color: var(--primary);
+        }
+
+        #vainko-input::placeholder { color: var(--text-muted); }
+
+        .send-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--primary);
+            background: var(--primary-dim);
+            color: var(--primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+
+        .send-btn:hover {
+            background: var(--primary);
+            color: var(--dark);
+            box-shadow: 0 0 12px var(--primary-glow);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .voice-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-dim);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+
+        .voice-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .voice-btn.listening {
+            border-color: var(--error);
+            color: var(--error);
+            animation: glow-red 1s ease-in-out infinite;
+        }
+
+        @keyframes glow-red {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,68,68,0.4); }
+            50% { box-shadow: 0 0 0 6px rgba(255,68,68,0); }
+        }
+
+        .input-hint {
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        /* ── ONBOARDING POPUP ── */
+        .onboarding-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(6px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fade-in 0.4s ease;
+        }
+
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .onboarding-card {
+            background: var(--dark-2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 36px;
+            max-width: 480px;
+            width: 90%;
+            box-shadow: 0 0 60px rgba(0,255,157,0.1), 0 40px 80px rgba(0,0,0,0.5);
+            animation: card-in 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes card-in {
+            from { opacity: 0; transform: translateY(30px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .onboard-step { display: none; }
+        .onboard-step.active { display: block; }
+
+        .onboard-icon {
+            font-size: 42px;
+            margin-bottom: 16px;
+            display: block;
+        }
+
+        .onboard-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+
+        .onboard-text {
+            font-size: 14px;
+            line-height: 1.7;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+        }
+
+        .onboard-text strong { color: var(--primary); font-weight: 600; }
+
+        .onboard-progress {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 24px;
+        }
+
+        .onboard-pip {
+            height: 3px;
+            border-radius: 2px;
+            flex: 1;
+            background: var(--border);
+            transition: background 0.3s;
+        }
+
+        .onboard-pip.done { background: var(--primary); }
+
+        .onboard-btn {
+            width: 100%;
+            padding: 13px;
+            border-radius: var(--radius);
+            border: none;
+            background: var(--primary);
+            color: var(--dark);
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .onboard-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 24px rgba(0,255,157,0.35);
+        }
+
+        /* ── SCROLLBAR GLOBAL ── */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,255,157,0.15); border-radius: 3px; }
+
+        /* ── API KEY SETUP ── */
+        .api-setup-banner {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: rgba(255, 187, 0, 0.08);
+            border-bottom: 1px solid rgba(255, 187, 0, 0.2);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--warning);
+            flex-shrink: 0;
+        }
+
+        .api-setup-banner.visible { display: flex; }
+
+        .api-key-input {
+            flex: 1;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,187,0,0.3);
+            border-radius: 6px;
+            padding: 5px 10px;
+            color: var(--warning);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            outline: none;
+        }
+
+        .api-save-btn {
+            padding: 5px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--warning);
+            background: transparent;
+            color: var(--warning);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .api-save-btn:hover { background: rgba(255,187,0,0.1); }
+    </style>
+</head>
+<body>
+
+    <!-- ── ONBOARDING POPUP ── -->
+    <div class="onboarding-overlay" id="onboarding" style="display:none">
+        <div class="onboarding-card">
+            <div class="onboard-progress" id="onboard-progress"></div>
+
+            <div class="onboard-step active" id="step-0">
+                <span class="onboard-icon">🤖</span>
+                <div class="onboard-title">MEET VAINKO</div>
+                <p class="onboard-text">
+                    I'm your <strong>Virtual Artificial Intelligence in Novel Knowledge Operation</strong> — your personal terminal trainer.<br><br>
+                    Never used a terminal before? <strong>Perfect.</strong> That's exactly why I'm here.
+                </p>
+            </div>
+
+            <div class="onboard-step" id="step-1">
+                <span class="onboard-icon">🖥️</span>
+                <div class="onboard-title">WHAT IS A TERMINAL?</div>
+                <p class="onboard-text">
+                    A terminal is how you <strong>talk directly to your computer</strong> using text commands — no clicking, no menus.<br><br>
+                    It's how hackers, developers, and sysadmins get things done. Now it's your turn.
+                </p>
+            </div>
+
+            <div class="onboard-step" id="step-2">
+                <span class="onboard-icon">⚡</span>
+                <div class="onboard-title">HOW I HELP YOU</div>
+                <p class="onboard-text">
+                    Ask me anything: <strong>"how do I list files?"</strong> and I'll explain it AND give you a clickable command to run directly in the terminal.<br><br>
+                    Think of me as the teacher sitting next to you while you explore Kali or Ubuntu.
+                </p>
+            </div>
+
+            <div class="onboard-step" id="step-3">
+                <span class="onboard-icon">🚀</span>
+                <div class="onboard-title">YOU'RE READY</div>
+                <p class="onboard-text">
+                    Switch to the <strong>Terminal tab</strong> to pick your OS and start a real session.<br><br>
+                    Come back here any time to ask me what to do next. Let's begin.
+                </p>
+            </div>
+
+            <button class="onboard-btn" id="onboard-next">GET STARTED →</button>
+        </div>
+    </div>
+
+    <!-- ── HEADER ── -->
+    <header class="vainko-header">
+        <div class="vainko-brand">
+            <div class="vainko-avatar">V</div>
+            <div>
+                <div class="vainko-name">VAINKO</div>
+                <div class="vainko-tagline">Virtual Artificial Intelligence in Novel Knowledge Operation</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="os-badge" id="os-badge" style="display:none">
+                <div class="os-badge-dot"></div>
+                <span id="os-badge-text">Kali Linux</span>
+            </div>
+            <button class="header-btn" onclick="clearChat()">Clear</button>
+            <button class="header-btn" id="show-onboarding-btn">Tour</button>
+        </div>
+    </header>
+
+    <!-- API key setup banner -->
+    <div class="api-setup-banner" id="api-banner">
+        ⚠ Add your Gemini API key to enable Vainko AI (free at aistudio.google.com):
+        <input type="password" class="api-key-input" id="api-key-field" placeholder="AIza...">
+        <button class="api-save-btn" onclick="saveApiKey()">Save</button>
+    </div>
+
+    <!-- ── MAIN BODY ── -->
+    <div class="vainko-body">
+
+        <!-- Sidebar -->
+        <aside class="vainko-sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-label">Modules</div>
+                <div class="module-item"><div class="module-dot green"></div>Knowledge Core</div>
+                <div class="module-item"><div class="module-dot green"></div>Terminal Engine</div>
+                <div class="module-item"><div class="module-dot green"></div>Code Assistant</div>
+                <div class="module-item"><div class="module-dot blue"></div>Security Suite</div>
+                <div class="module-item"><div class="module-dot yellow"></div>Voice Input</div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">Quick Help</div>
+                <div class="quick-commands" id="quick-commands">
+                    <button class="quick-cmd" onclick="quickAsk('How do I navigate folders in Linux?')"><span class="quick-cmd-icon">📁</span>Navigate folders</button>
+                    <button class="quick-cmd" onclick="quickAsk('How do I list files and see permissions?')"><span class="quick-cmd-icon">📋</span>List files</button>
+                    <button class="quick-cmd" onclick="quickAsk('How do I install a package on Kali Linux?')"><span class="quick-cmd-icon">📦</span>Install packages</button>
+                    <button class="quick-cmd" onclick="quickAsk('What are common Kali Linux hacking tools?')"><span class="quick-cmd-icon">🔍</span>Kali tools</button>
+                    <button class="quick-cmd" onclick="quickAsk('How do I check my network interfaces?')"><span class="quick-cmd-icon">🌐</span>Network info</button>
+                    <button class="quick-cmd" onclick="quickAsk('How do I create and edit files in Linux?')"><span class="quick-cmd-icon">✏️</span>Create/edit files</button>
+                    <button class="quick-cmd" onclick="quickAsk('Explain Linux file permissions to me')"><span class="quick-cmd-icon">🔒</span>Permissions</button>
+                    <button class="quick-cmd" onclick="quickAsk('Give me a beginner Linux challenge to try')"><span class="quick-cmd-icon">🎯</span>Give me a challenge</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Chat -->
+        <div class="vainko-chat">
+            <div class="chat-messages" id="chat-messages"></div>
+
+            <div class="chat-input-area">
+                <div class="input-wrapper">
+                    <span class="input-prefix">></span>
+                    <input type="text" id="vainko-input" placeholder="Ask Vainko anything about the terminal..." autocomplete="off" spellcheck="false">
+                    <button class="voice-btn" id="voice-btn" title="Voice input">🎤</button>
+                    <button class="send-btn" id="send-btn" title="Send">↑</button>
+                </div>
+                <div class="input-hint">Press Enter to send · Click any command chip to run it in the terminal</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+    // ── VAINKO CORE ──
+
+    // Conversation history (kept from your original ConversationManager)
+    const ConversationManager = {
+        history: [],
+        maxHistory: 40,
+        addMessage(role, content) {
+            this.history.push({ role, content });
+            if (this.history.length > this.maxHistory) {
+                this.history = this.history.slice(-this.maxHistory);
+            }
+        },
+        getHistory() { return this.history; },
+        clear() { this.history = []; }
+    };
+
+    // OS context (set from parent platform or URL param)
+    let currentOS = new URLSearchParams(window.location.search).get('os') || null;
+
+    // Terminal bridge — if embedded in the platform this function gets overridden
+    window.runInTerminal = window.runInTerminal || function(cmd) {
+        // fallback: copy to clipboard
+        navigator.clipboard?.writeText(cmd).then(() => {
+            addSystemMsg(`📋 Copied to clipboard: <code>${escHtml(cmd)}</code>`);
+        });
+    };
+
+    // ── API KEY MANAGEMENT ──
+    function getApiKey() {
+        return sessionStorage.getItem('vainko_api_key') || localStorage.getItem('vainko_api_key') || '';
+    }
+
+    function saveApiKey() {
+        const key = document.getElementById('api-key-field').value.trim();
+        if (key.startsWith('AIza')) {
+            sessionStorage.setItem('vainko_api_key', key);
+            document.getElementById('api-banner').classList.remove('visible');
+            addVainkoMsg("✅ Gemini API key saved! I'm fully online now. Ask me anything about the terminal.");
+        } else {
+            document.getElementById('api-key-field').style.borderColor = 'var(--error)';
+            setTimeout(() => document.getElementById('api-key-field').style.borderColor = '', 1500);
+        }
+    }
+
+    // ── SYSTEM PROMPT ──
+    function buildSystemPrompt() {
+        const osContext = currentOS
+            ? `The user is currently running a ${currentOS} Docker container in the terminal.`
+            : 'The user has not selected an OS environment yet.';
+
+        return `You are VAINKO — Virtual Artificial Intelligence in Novel Knowledge Operation. You are the AI trainer built into a web-based terminal platform that lets users run real Kali Linux, Ubuntu, and PowerShell environments in their browser.
+
+${osContext}
+
+Your role:
+- Teach complete beginners how to use Linux/Kali/Ubuntu terminals
+- Explain what commands do in plain English before showing them
+- When giving commands for the user to run, ALWAYS wrap them in [CMD: command here] tags so they become clickable chips
+- Example: To list files, use [CMD: ls -la] — this shows hidden files too
+- Give step-by-step guidance and build on what the user has learned
+- For Kali Linux, you can explain security tools (nmap, metasploit, wireshark, burpsuite, etc.) in an educational context
+- Keep responses concise and practical — show don't just tell
+- If a user seems stuck, proactively suggest what to try next
+- Format code blocks with triple backticks for multi-line examples
+- Be encouraging — terminal can feel scary at first
+
+Personality: Smart, direct, slightly playful. You're the coolest teacher the user has ever had. You genuinely want them to get good at this.
+
+IMPORTANT: Always use [CMD: actual-command] for any single command the user should run. Never just put commands in backticks alone — always use the [CMD:] wrapper so they become clickable.`;
+    }
+
+    // ── MAIN AI CALL (Gemini via server proxy — fixes CORS) ──
+    async function askVainko(userMessage) {
+        const apiKey = getApiKey();
+
+        if (!apiKey) {
+            return `I need a Gemini API key to give you smart answers!\n\nEnter your key in the yellow bar above.\n\nNo key yet? Get one **free** at **aistudio.google.com** → click "Get API key" — takes 2 minutes, no credit card needed.`;
+        }
+
+        ConversationManager.addMessage('user', userMessage);
+
+        const contents = ConversationManager.getHistory().map(m => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content }]
+        }));
+
+        // Call /api/vainko on your local server.js — it proxies to Gemini server-side
+        const response = await fetch('/api/vainko', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-gemini-key': apiKey
+            },
+            body: JSON.stringify({
+                system_instruction: {
+                    parts: [{ text: buildSystemPrompt() }]
+                },
+                contents,
+                generationConfig: {
+                    maxOutputTokens: 1024,
+                    temperature: 0.7
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            if (response.status === 400) throw new Error('Invalid API key — make sure it starts with AIza...');
+            throw new Error(err.error?.message || `Error ${response.status}`);
+        }
+
+        const data = await response.json();
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response from Gemini.';
+        ConversationManager.addMessage('assistant', reply);
+        return reply;
+    }
+
+    // ── RENDER HELPERS ──
+    function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function renderMessage(raw) {
+        // Convert [CMD: xxx] to clickable chips
+        let html = raw.replace(/\[CMD:\s*([^\]]+)\]/g, (_, cmd) => {
+            const safe = escHtml(cmd.trim());
+            return `<span class="cmd-chip" onclick="runCmd('${cmd.trim().replace(/'/g,"\\'")}')"><code>${safe}</code></span>`;
+        });
+
+        // Code blocks
+        html = html.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, code) =>
+            `<pre><code>${escHtml(code.trim())}</code></pre>`
+        );
+
+        // Inline code (not inside pre)
+        html = html.replace(/(?<!<pre><code>[\s\S]*)`([^`]+)`(?![\s\S]*<\/code><\/pre>)/g, (_, c) =>
+            `<code>${escHtml(c)}</code>`
+        );
+
+        // Bold
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+        // Line breaks
+        html = html.replace(/\n/g, '<br>');
+
+        return html;
+    }
+
+    function addVainkoMsg(raw) {
+        const msgs = document.getElementById('chat-messages');
+        const div = document.createElement('div');
+        div.className = 'msg vainko';
+        div.innerHTML = `
+            <div class="msg-avatar vainko-av">V</div>
+            <div class="msg-bubble">${renderMessage(raw)}</div>
+        `;
+        msgs.appendChild(div);
+        msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function addUserMsg(text) {
+        const msgs = document.getElementById('chat-messages');
+        const div = document.createElement('div');
+        div.className = 'msg user';
+        div.innerHTML = `
+            <div class="msg-bubble">${escHtml(text)}</div>
+            <div class="msg-avatar user-av">U</div>
+        `;
+        msgs.appendChild(div);
+        msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function addSystemMsg(html) {
+        const msgs = document.getElementById('chat-messages');
+        const div = document.createElement('div');
+        div.style.cssText = 'text-align:center; font-family: JetBrains Mono, monospace; font-size:11px; color: var(--text-muted); padding: 4px;';
+        div.innerHTML = html;
+        msgs.appendChild(div);
+        msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    let thinkingEl = null;
+    function showThinking() {
+        const msgs = document.getElementById('chat-messages');
+        thinkingEl = document.createElement('div');
+        thinkingEl.className = 'msg vainko thinking-msg';
+        thinkingEl.innerHTML = `
+            <div class="msg-avatar vainko-av">V</div>
+            <div class="msg-bubble">
+                <div class="thinking-dots"><span></span><span></span><span></span></div>
+                <span>Processing...</span>
+            </div>
+        `;
+        msgs.appendChild(thinkingEl);
+        msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function hideThinking() {
+        if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
+    }
+
+    // ── SEND HANDLER ──
+    let isSending = false;
+
+    async function sendMessage() {
+        if (isSending) return;
+        const input = document.getElementById('vainko-input');
+        const msg = input.value.trim();
+        if (!msg) return;
+
+        input.value = '';
+        addUserMsg(msg);
+        isSending = true;
+        document.getElementById('send-btn').disabled = true;
+
+        showThinking();
+        try {
+            const reply = await askVainko(msg);
+            hideThinking();
+            addVainkoMsg(reply);
+        } catch (err) {
+            hideThinking();
+            addVainkoMsg(`❌ **Error:** ${escHtml(err.message)}`);
+        }
+
+        isSending = false;
+        document.getElementById('send-btn').disabled = false;
+        input.focus();
+    }
+
+    function quickAsk(q) {
+        document.getElementById('vainko-input').value = q;
+        sendMessage();
+    }
+
+    function runCmd(cmd) {
+        window.runInTerminal(cmd);
+        addSystemMsg(`▶ Sent to terminal: <code>${escHtml(cmd)}</code>`);
+    }
+
+    function clearChat() {
+        document.getElementById('chat-messages').innerHTML = '';
+        ConversationManager.clear();
+        bootVainko();
+    }
+
+    // ── OS CONTEXT (called from parent platform) ──
+    window.setVainkoOS = function(os) {
+        currentOS = os;
+        const badge = document.getElementById('os-badge');
+        const badgeText = document.getElementById('os-badge-text');
+        if (os) {
+            badgeText.textContent = os;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+        addSystemMsg(`🔄 OS context updated: <strong>${os}</strong>`);
+    };
+
+    // ── VOICE INPUT ──
+    let recognition = null;
+
+    function setupVoice() {
+        if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) return;
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SR();
+        recognition.continuous = false;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = e => {
+            const text = e.results[0][0].transcript;
+            document.getElementById('vainko-input').value = text;
+            sendMessage();
+        };
+
+        recognition.onend = () => {
+            document.getElementById('voice-btn').classList.remove('listening');
+        };
+
+        document.getElementById('voice-btn').addEventListener('click', () => {
+            const btn = document.getElementById('voice-btn');
+            if (btn.classList.contains('listening')) {
+                recognition.stop();
+            } else {
+                recognition.start();
+                btn.classList.add('listening');
+            }
+        });
+    }
+
+    // ── ONBOARDING ──
+    let onboardStep = 0;
+    const totalSteps = 4;
+
+    function initOnboarding() {
+        const progress = document.getElementById('onboard-progress');
+        progress.innerHTML = Array.from({length: totalSteps}, (_, i) =>
+            `<div class="onboard-pip" id="pip-${i}"></div>`
+        ).join('');
+        updateOnboardPips();
+    }
+
+    function updateOnboardPips() {
+        for (let i = 0; i < totalSteps; i++) {
+            const pip = document.getElementById(`pip-${i}`);
+            if (pip) pip.className = `onboard-pip${i < onboardStep ? ' done' : ''}`;
+        }
+    }
+
+    document.getElementById('onboard-next').addEventListener('click', () => {
+        document.getElementById(`step-${onboardStep}`).classList.remove('active');
+        onboardStep++;
+        updateOnboardPips();
+
+        if (onboardStep >= totalSteps) {
+            document.getElementById('onboarding').style.display = 'none';
+            localStorage.setItem('vainko_onboarded', '1');
+        } else {
+            document.getElementById(`step-${onboardStep}`).classList.add('active');
+            if (onboardStep === totalSteps - 1) {
+                document.getElementById('onboard-next').textContent = "LET'S GO →";
+            }
+        }
+    });
+
+    document.getElementById('show-onboarding-btn').addEventListener('click', () => {
+        onboardStep = 0;
+        document.querySelectorAll('.onboard-step').forEach(s => s.classList.remove('active'));
+        document.getElementById('step-0').classList.add('active');
+        document.getElementById('onboard-next').textContent = 'NEXT →';
+        updateOnboardPips();
+        document.getElementById('onboarding').style.display = 'flex';
+    });
+
+    // ── BOOT ──
+    function bootVainko() {
+        const greetings = currentOS
+            ? `Hey! I see you're running **${currentOS}**. Ready to explore? Try asking me what to do first, or pick a quick command from the sidebar.`
+            : `Hello! I'm **VAINKO** — your terminal trainer.\n\nI can teach you Linux commands, explain what they do, and give you clickable commands to run directly in the terminal.\n\nPick an OS from the Terminal tab to get started, or ask me anything right now!`;
+
+        addVainkoMsg(greetings);
+    }
+
+    // ── INIT ──
+    document.addEventListener('DOMContentLoaded', () => {
+        // Check API key
+        if (!getApiKey()) {
+            document.getElementById('api-banner').classList.add('visible');
+        }
+
+        // Onboarding
+        initOnboarding();
+        if (!localStorage.getItem('vainko_onboarded')) {
+            document.getElementById('onboarding').style.display = 'flex';
+        }
+
+        // Input events
+        document.getElementById('vainko-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') sendMessage();
+        });
+        document.getElementById('send-btn').addEventListener('click', sendMessage);
+
+        // Voice
+        setupVoice();
+
+        // Boot message
+        bootVainko();
+    });
+    </script>
+</body>
+</html>
