@@ -476,59 +476,228 @@ function closeVainkoChat() {
 function loadVainkoChat() {
   const overlay = document.getElementById('vainko-chat-overlay');
   const skill = skillLevel || 'beginner';
-  const skillLabel = skill === 'experienced' ? 'Experienced' : skill === 'intermediate' ? 'Some Experience' : 'Beginner';
+  const skillLabel = skill === 'experienced' ? 'Experienced' : skill === 'intermediate' ? 'Intermediate' : 'Beginner';
 
-  const lessons = [
-    { id: 'navigation', label: '📂 Navigation' },
-    { id: 'permissions', label: '🔒 Permissions' },
-    { id: 'networking', label: '🌐 Networking' },
-    { id: 'kali-tools', label: '🐉 Kali Tools' },
-    { id: 'scripting', label: '📝 Scripting' },
-    { id: 'packages', label: '📦 Package Management' },
-  ];
+  const LESSONS = {
+    navigation: {
+      title: 'Navigation', desc: 'Move around the filesystem with confidence',
+      difficulty: 'beginner', time: '~8 min',
+      steps: [
+        { title: 'Understanding the filesystem structure', desc: 'The Linux directory tree and how it is organized' },
+        { title: 'Moving between directories with cd', desc: 'Change your current working directory' },
+        { title: 'Listing contents with ls and flags', desc: 'View files and directories with useful options' },
+        { title: 'Understanding absolute vs relative paths', desc: 'Two ways to reference any location on disk' },
+        { title: 'Using pwd and tab completion', desc: 'Know where you are and type less' },
+      ]
+    },
+    permissions: {
+      title: 'Permissions', desc: 'Control who can read, write, and execute files',
+      difficulty: 'beginner', time: '~10 min',
+      steps: [
+        { title: 'Understanding rwx notation', desc: 'The three permission types and what they mean' },
+        { title: 'Reading permission strings', desc: 'Decode the output of ls -l' },
+        { title: 'Using chmod with numbers', desc: 'Set permissions using octal notation' },
+        { title: 'Using chmod with symbols', desc: 'Add or remove permissions with u/g/o and +/-' },
+        { title: 'Changing ownership with chown', desc: 'Transfer file ownership between users and groups' },
+      ]
+    },
+    networking: {
+      title: 'Networking', desc: 'Inspect and troubleshoot network connections',
+      difficulty: 'intermediate', time: '~12 min',
+      steps: [
+        { title: 'Checking your IP with ip addr', desc: 'View your network interfaces and addresses' },
+        { title: 'Testing connectivity with ping', desc: 'Verify if a host is reachable' },
+        { title: 'Scanning with nmap basics', desc: 'Discover open ports on a target' },
+        { title: 'Checking open ports with netstat', desc: 'See which services are listening locally' },
+        { title: 'Transferring files with curl and wget', desc: 'Download files and make HTTP requests' },
+      ]
+    },
+    'kali-tools': {
+      title: 'Kali Tools', desc: 'Essential security tools in Kali Linux',
+      difficulty: 'intermediate', time: '~15 min',
+      steps: [
+        { title: 'Nmap port scanning', desc: 'Scan targets for open ports and services' },
+        { title: 'Nikto web scanner', desc: 'Check web servers for common vulnerabilities' },
+        { title: 'John the Ripper basics', desc: 'Crack password hashes offline' },
+        { title: 'Hydra brute force', desc: 'Test login credentials against services' },
+        { title: 'Dirb directory enumeration', desc: 'Discover hidden directories on web servers' },
+      ]
+    },
+    scripting: {
+      title: 'Scripting', desc: 'Automate tasks with bash scripts',
+      difficulty: 'intermediate', time: '~12 min',
+      steps: [
+        { title: 'Writing your first bash script', desc: 'Create and run a .sh file from scratch' },
+        { title: 'Variables and input', desc: 'Store values and read user input' },
+        { title: 'Conditionals with if/else', desc: 'Make decisions in your scripts' },
+        { title: 'Loops with for and while', desc: 'Repeat actions over lists or conditions' },
+        { title: 'Making scripts executable', desc: 'Use chmod and shebangs correctly' },
+      ]
+    },
+    packages: {
+      title: 'Package Management', desc: 'Install, update, and remove software',
+      difficulty: 'beginner', time: '~8 min',
+      steps: [
+        { title: 'Understanding apt', desc: 'The default package manager on Debian-based systems' },
+        { title: 'Updating package lists', desc: 'Keep your package index current' },
+        { title: 'Installing and removing packages', desc: 'Add and remove software from the system' },
+        { title: 'Searching for packages', desc: 'Find packages by name or description' },
+        { title: 'Understanding dpkg', desc: 'Work with .deb packages directly' },
+      ]
+    }
+  };
 
-  overlay.innerHTML = `
-    <div class="vainko-chat-sidebar">
-      <div class="vainko-chat-sidebar-header"><h3>Lessons</h3></div>
-      <div class="vainko-lesson-list">
-        ${lessons.map(l => `<div class="vainko-lesson-item" onclick="startVainkoLesson('${l.id}', this)">${l.label}</div>`).join('')}
-      </div>
-    </div>
-    <div class="vainko-chat-main">
-      <div class="vainko-chat-topbar">
-        <div class="vainko-chat-topbar-left">
-          <button class="vainko-back-btn" onclick="closeVainkoChat()">← Back</button>
-          <span class="vainko-chat-logo">🤖 Vainko</span>
-        </div>
-        <span class="skill-badge ${skill}">${skillLabel}</span>
-      </div>
-      <div class="vainko-chat-messages" id="vainko-messages"></div>
-      <div class="vainko-chat-inputbar">
-        <input type="text" id="vainko-input" placeholder="Ask Vainko anything..." onkeydown="if(event.key==='Enter')sendVainkoMessage()" />
-        <button onclick="sendVainkoMessage()">Send</button>
-      </div>
-    </div>
-  `;
+  // Store on window for access by helper functions
+  window._vainkoLessons = LESSONS;
+  window._vainkoActiveLesson = null;
+  window._vainkoActiveStep = 0;
+  window._vainkoCompleted = {};
 
-  let greeting = '';
-  if (skill === 'beginner') {
-    greeting = "Hey! 👋 Let's start from zero — I'll walk you through everything step by step. Pick a lesson from the sidebar or just ask me anything!";
-  } else if (skill === 'intermediate') {
-    greeting = "Welcome back! 👋 Let's level up what you already know. Pick a topic from the sidebar or ask me anything!";
-  } else {
-    greeting = "Hey! 👋 I'll keep it advanced — just ask me anything or pick a challenge from the sidebar.";
+  // Build lesson cards HTML
+  let lessonCardsHtml = '';
+  for (const [id, lesson] of Object.entries(LESSONS)) {
+    const diffLabel = lesson.difficulty === 'beginner' ? 'Beginner' : 'Intermediate';
+    lessonCardsHtml += '<div class="v-lesson-card" data-lesson-id="' + id + '" onclick="selectVainkoLesson(\'' + id + '\')">' +
+      '<div class="v-lesson-card-title">' + lesson.title + '</div>' +
+      '<div class="v-lesson-card-desc">' + lesson.desc + '</div>' +
+      '<div class="v-lesson-card-meta">' +
+        '<span class="v-diff-pill ' + lesson.difficulty + '">' + diffLabel + '</span>' +
+        '<span class="v-lesson-card-time">' + lesson.time + '</span>' +
+      '</div></div>';
   }
-  appendVainkoMessage('assistant', greeting);
+
+  overlay.innerHTML = '<aside class="v-sidebar">' +
+      '<div class="v-sidebar-header">' +
+        '<div class="v-sidebar-brand">VAINKO</div>' +
+        '<div class="v-sidebar-skill"><span class="v-skill-pill ' + skill + '">' + skillLabel + '</span></div>' +
+      '</div>' +
+      '<div class="v-sidebar-section">Lessons</div>' +
+      '<div class="v-lesson-list">' + lessonCardsHtml + '</div>' +
+    '</aside>' +
+    '<section class="v-steps-panel" id="v-steps-panel">' +
+      '<div class="v-steps-header">' +
+        '<div class="v-steps-title" id="v-steps-title"></div>' +
+        '<div class="v-steps-progress"><div class="v-steps-progress-fill" id="v-steps-progress-fill"></div></div>' +
+        '<div class="v-steps-progress-label" id="v-steps-progress-label">0 / 0 steps</div>' +
+      '</div>' +
+      '<div class="v-steps-list" id="v-steps-list"></div>' +
+      '<div class="v-lesson-complete" id="v-lesson-complete">' +
+        '<div class="v-lesson-complete-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline></svg></div>' +
+        '<div class="v-lesson-complete-text">Lesson Complete</div>' +
+        '<div class="v-lesson-complete-sub">All steps finished. Pick another lesson or keep exploring.</div>' +
+      '</div>' +
+      '<div class="v-steps-footer" id="v-steps-footer">' +
+        '<button class="v-ask-step-btn" onclick="askVainkoAboutStep()">Ask Vainko about this step</button>' +
+      '</div>' +
+    '</section>' +
+    '<main class="v-chat-column">' +
+      '<div class="v-chat-topbar">' +
+        '<div class="v-chat-topbar-left">' +
+          '<button class="v-back-link" onclick="closeVainkoChat()">&larr; Back</button>' +
+          '<span class="v-chat-wordmark">Vainko</span>' +
+        '</div>' +
+        '<span class="v-skill-pill ' + skill + '">' + skillLabel + '</span>' +
+      '</div>' +
+      '<div class="v-chat-messages" id="vainko-messages"></div>' +
+      '<div class="v-chat-inputbar">' +
+        '<input type="text" id="vainko-input" placeholder="Ask Vainko..." onkeydown="if(event.key===\'Enter\')sendVainkoMessage()" />' +
+        '<button onclick="sendVainkoMessage()">Send</button>' +
+      '</div>' +
+    '</main>';
+
+  appendVainkoMessage('assistant', 'Select a lesson from the sidebar, or ask a question directly.');
+}
+
+function selectVainkoLesson(id) {
+  const LESSONS = window._vainkoLessons;
+  if (!LESSONS || !LESSONS[id]) return;
+  window._vainkoActiveLesson = id;
+  window._vainkoActiveStep = 0;
+  if (!window._vainkoCompleted[id]) window._vainkoCompleted[id] = new Set();
+
+  document.querySelectorAll('.v-lesson-card').forEach(function(c) { c.classList.remove('active'); });
+  var card = document.querySelector('.v-lesson-card[data-lesson-id="' + id + '"]');
+  if (card) card.classList.add('active');
+
+  document.getElementById('v-steps-panel').classList.add('visible');
+  renderVainkoSteps();
+}
+
+function renderVainkoSteps() {
+  var LESSONS = window._vainkoLessons;
+  var id = window._vainkoActiveLesson;
+  if (!LESSONS || !id) return;
+  var lesson = LESSONS[id];
+  var done = window._vainkoCompleted[id] || new Set();
+  var total = lesson.steps.length;
+  var doneCount = done.size;
+
+  document.getElementById('v-steps-title').textContent = lesson.title;
+  document.getElementById('v-steps-progress-fill').style.width = ((doneCount / total) * 100) + '%';
+  document.getElementById('v-steps-progress-label').textContent = doneCount + ' / ' + total + ' steps';
+
+  var completeEl = document.getElementById('v-lesson-complete');
+  var listEl = document.getElementById('v-steps-list');
+  var footerEl = document.getElementById('v-steps-footer');
+
+  if (doneCount === total) {
+    completeEl.classList.add('visible');
+    listEl.style.display = 'none';
+    footerEl.style.display = 'none';
+    return;
+  } else {
+    completeEl.classList.remove('visible');
+    listEl.style.display = 'flex';
+    footerEl.style.display = 'block';
+  }
+
+  listEl.innerHTML = '';
+  lesson.steps.forEach(function(step, i) {
+    var item = document.createElement('div');
+    var isDone = done.has(i);
+    var isActive = i === window._vainkoActiveStep && !isDone;
+    item.className = 'v-step-item' + (isDone ? ' done' : '') + (isActive ? ' active' : '');
+    item.onclick = function() { clickVainkoStep(i); };
+    item.innerHTML = '<div class="v-step-checkbox"></div>' +
+      '<div class="v-step-content">' +
+        '<div class="v-step-title">' + (i + 1) + '. ' + step.title + '</div>' +
+        '<div class="v-step-desc">' + step.desc + '</div>' +
+      '</div>';
+    listEl.appendChild(item);
+  });
+}
+
+function clickVainkoStep(index) {
+  var LESSONS = window._vainkoLessons;
+  var id = window._vainkoActiveLesson;
+  if (!LESSONS || !id) return;
+  window._vainkoActiveStep = index;
+  var lesson = LESSONS[id];
+  var step = lesson.steps[index];
+
+  if (!window._vainkoCompleted[id]) window._vainkoCompleted[id] = new Set();
+  window._vainkoCompleted[id].add(index);
+  renderVainkoSteps();
+
+  var msg = "I'm on step " + (index + 1) + " of " + lesson.title + ": " + step.title + ". Teach me this.";
+  appendVainkoMessage('user', msg);
+  sendVainkoToApi(msg);
+}
+
+function askVainkoAboutStep() {
+  if (!window._vainkoActiveLesson) return;
+  clickVainkoStep(window._vainkoActiveStep);
 }
 
 function appendVainkoMessage(role, content) {
   const container = document.getElementById('vainko-messages');
   if (!container) return;
   const div = document.createElement('div');
-  div.className = 'vainko-msg ' + role;
-  const processed = content.replace(/\[CMD:(.*?)\]/g, (_, cmd) => {
-    const escaped = cmd.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    return `<span class="cmd-chip" onclick="copyVainkoCmd('${escaped}')" title="Click to copy">${cmd}</span>`;
+  div.className = 'v-msg ' + role;
+  const processed = content.replace(/\[CMD:\s*(.*?)\]/g, function(_, cmd) {
+    const trimmed = cmd.trim();
+    const escaped = trimmed.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    return '<span class="v-cmd-chip" onclick="copyVainkoCmd(\'' + escaped + '\')" title="Click to copy">' + trimmed + '</span>';
   });
   div.innerHTML = processed;
   container.appendChild(div);
@@ -546,12 +715,16 @@ async function sendVainkoMessage() {
   if (!message) return;
   input.value = '';
   appendVainkoMessage('user', message);
+  sendVainkoToApi(message);
+}
+
+async function sendVainkoToApi(message) {
+  const container = document.getElementById('vainko-messages');
 
   const typingDiv = document.createElement('div');
-  typingDiv.className = 'vainko-msg assistant vainko-typing';
-  typingDiv.textContent = 'Vainko is thinking...';
+  typingDiv.className = 'v-typing-indicator';
   typingDiv.id = 'vainko-typing';
-  const container = document.getElementById('vainko-messages');
+  typingDiv.innerHTML = '<div class="v-typing-dot"></div><div class="v-typing-dot"></div><div class="v-typing-dot"></div>';
   if (container) { container.appendChild(typingDiv); container.scrollTop = container.scrollHeight; }
 
   try {
@@ -570,47 +743,7 @@ async function sendVainkoMessage() {
   }
 }
 
-function startVainkoLesson(lessonId, el) {
-  document.querySelectorAll('.vainko-lesson-item').forEach(i => i.classList.remove('active'));
-  if (el) el.classList.add('active');
-  const prompts = {
-    'navigation':  'Teach me about terminal navigation — cd, ls, pwd, and moving around the filesystem.',
-    'permissions': 'Teach me about file permissions in Linux — chmod, chown, and understanding permission groups.',
-    'networking':  'Teach me about networking commands — ping, curl, wget, ifconfig, netstat, and more.',
-    'kali-tools':  'Teach me about essential Kali Linux tools — nmap, nikto, john, and other security tools.',
-    'scripting':   'Teach me bash scripting — variables, loops, conditionals, and writing simple scripts.',
-    'packages':    'Teach me about package management — apt, dpkg, and managing software in Linux.',
-  };
-  const container = document.getElementById('vainko-messages');
-  if (container) container.innerHTML = '';
-  const prompt = prompts[lessonId] || 'Tell me about this topic.';
-  appendVainkoMessage('user', prompt);
-  document.getElementById('vainko-input').value = '';
-
-  // Send to API
-  (async () => {
-    const typingDiv = document.createElement('div');
-    typingDiv.className = 'vainko-msg assistant vainko-typing';
-    typingDiv.textContent = 'Vainko is thinking...';
-    typingDiv.id = 'vainko-typing';
-    if (container) { container.appendChild(typingDiv); container.scrollTop = container.scrollHeight; }
-
-    try {
-      const res = await fetch('/api/vainko', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(65000),
-        body: JSON.stringify({ message: prompt, os: currentOS || 'linux', skill: skillLevel || 'beginner' }),
-      });
-      const data = await res.json();
-      document.getElementById('vainko-typing')?.remove();
-      appendVainkoMessage('assistant', data.reply || data.error || 'No response.');
-    } catch (err) {
-      document.getElementById('vainko-typing')?.remove();
-      appendVainkoMessage('assistant', err.name === 'TimeoutError' ? 'Vainko took too long. Try a shorter question.' : 'Error contacting Vainko.');
-    }
-  })();
-}
+// startVainkoLesson is replaced by selectVainkoLesson above
 
 // ─── Ghost Hints ──────────────────────────────────────────────────────────────
 

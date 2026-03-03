@@ -37,8 +37,11 @@ ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
     bash coreutils procps iproute2 iputils-ping net-tools \\
     curl wget dnsutils sudo python3 vim nano whois \\
-    nmap netcat-openbsd less file unzip git openssh-client \\
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    nmap netcat-openbsd less file unzip git openssh-client
+# Keep apt lists so apt install works instantly — refresh in background on startup
+RUN printf '#!/bin/bash\\napt-get update -qq &>/dev/null &\\nexec "$@"\\n' > /usr/local/bin/entrypoint.sh \\
+    && chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 WORKDIR /root
 CMD ["/bin/bash", "-i"]
 `,
@@ -50,8 +53,10 @@ ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
     bash coreutils procps iproute2 iputils-ping net-tools \\
     curl wget dnsutils sudo python3 vim nano \\
-    less file unzip git openssh-client \\
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    less file unzip git openssh-client
+RUN printf '#!/bin/bash\\napt-get update -qq &>/dev/null &\\nexec "$@"\\n' > /usr/local/bin/entrypoint.sh \\
+    && chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 WORKDIR /root
 CMD ["/bin/bash", "-i"]
 `,
@@ -63,8 +68,7 @@ ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root POWERSHELL_TEL
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
     coreutils procps iproute2 iputils-ping net-tools \\
     curl wget dnsutils traceroute sudo python3 vim nano \\
-    nmap netcat-openbsd less file unzip git openssh-client whois \\
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    nmap netcat-openbsd less file unzip git openssh-client whois
 # Windows command aliases so familiar commands just work
 RUN ln -s /usr/bin/traceroute /usr/local/bin/tracert \\
     && ln -s /usr/bin/python3 /usr/local/bin/python \\
@@ -107,11 +111,18 @@ const INACTIVITY_MS = 15 * 60 * 1000; // 15 minutes
 
 const app    = express();
 const server = http.createServer(app);
-const wss    = new WebSocket.Server({ server });
+const wss    = new WebSocket.Server({ noServer: true });
 const docker = new Docker();
 
 app.use(express.json());
+
 app.use(express.static(path.join(__dirname, "public")));
+
+server.on('upgrade', (req, socket, head) => {
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    wss.emit('connection', ws, req);
+  });
+});
 
 // --- Auth routes (local SQLite) -----------------------------------------------
 const authRoutes = require('./routes/auth');
@@ -286,7 +297,9 @@ wss.on("connection", (ws) => {
             wsSend(existing.ws, { type: "output", data: Buffer.from(chunk).toString("base64") });
           });
           resetInactivityTimer(sessionId);
-          wsSend(ws, { type: "ready", sessionId, os, osName: cfg.name });
+          wsSend(ws, {
+            type: "ready", sessionId, os, osName: cfg.name,
+          });
           console.log(`[session] reconnected: ${sessionId} (${cfg.name})`);
           return;
         }
@@ -301,13 +314,26 @@ wss.on("connection", (ws) => {
             return;
           }
 
-          // Pull image if missing
+          // Build or pull image if missing
           if (!(await imageExists(cfg.image))) {
-            wsSend(ws, { type: "status", message: `Pulling ${cfg.image} � this may take a minute�` });
-            await pullImage(cfg.image, (status) => {
-              wsSend(ws, { type: "status", message: status });
-            });
-            wsSend(ws, { type: "status", message: `Image ready. Starting container�` });
+            if (CUSTOM_IMAGES[cfg.image]) {
+              // Custom image — build it inline (not on Docker Hub)
+              wsSend(ws, { type: "status", message: `Building ${cfg.image} image — this takes 1–2 min (first time only)…` });
+              try {
+                await buildImage(cfg.image, CUSTOM_IMAGES[cfg.image].dockerfile);
+                wsSend(ws, { type: "status", message: `Image ready. Starting container…` });
+              } catch (buildErr) {
+                wsSend(ws, { type: "error", message: `Failed to build ${cfg.image}: ${buildErr.message}` });
+                return;
+              }
+            } else {
+              // Third-party image — pull from registry
+              wsSend(ws, { type: "status", message: `Pulling ${cfg.image} — this may take a minute…` });
+              await pullImage(cfg.image, (status) => {
+                wsSend(ws, { type: "status", message: status });
+              });
+              wsSend(ws, { type: "status", message: `Image ready. Starting container…` });
+            }
           }
 
           // Ensure persistent volume exists
@@ -335,9 +361,9 @@ wss.on("connection", (ws) => {
             Env:        cfg.env || ["TERM=xterm-256color", "HOME=/root", "DEBIAN_FRONTEND=noninteractive"],
             WorkingDir: cfg.workdir,
             HostConfig: {
-              Memory:    512 * 1024 * 1024, // 512 MB
+              Memory:    512 * 1024 * 1024,
               CpuPeriod: 100000,
-              CpuQuota:  100000,            // 1.0 CPU
+              CpuQuota:  100000,
               Binds:     [`${volName}:/root/workspace`],
               NetworkMode: "bridge",
             },
@@ -354,6 +380,7 @@ wss.on("connection", (ws) => {
 
           await container.start();
           if (os === 'powershell') await container.resize({ h: 50, w: 220 });
+
           console.log(`[session] container started: ${sessionId} (${cfg.name})`);
 
           const sessData = { container, stream, ws, os, lastActivity: Date.now(), timer: null, stripCount: 0 };
@@ -401,7 +428,9 @@ wss.on("connection", (ws) => {
             await destroySession(sessionId);
           });
 
-          wsSend(ws, { type: "ready", sessionId, os, osName: cfg.name });
+          wsSend(ws, {
+            type: "ready", sessionId, os, osName: cfg.name,
+          });
 
         } catch (err) {
           console.error(`[init error] ${sessionId}:`, err.message);
@@ -449,7 +478,10 @@ wss.on("connection", (ws) => {
 app.get("/api/session/:id", (req, res) => {
   const sess = sessions.get(req.params.id);
   if (sess) {
-    res.json({ active: true, os: sess.os, osName: OS_CONFIG[sess.os].name, lastActivity: sess.lastActivity });
+    const cfg = OS_CONFIG[sess.os] || {};
+    res.json({
+      active: true, os: sess.os, osName: cfg.name, lastActivity: sess.lastActivity,
+    });
   } else {
     res.json({ active: false });
   }
@@ -633,22 +665,15 @@ async function checkDocker() {
 
 // ─── Start ───────────────────────────────────────────────────────────────────
 
-// Build custom images first, then start listening (with 10 s timeout so server
-// always comes up even when Docker Desktop isn't running).
-const IMAGE_TIMEOUT = 10_000;
-Promise.race([
-  ensureCustomImages(),
-  new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), IMAGE_TIMEOUT))
-]).then(() => cleanupOldContainers()).catch(() => {}).then(async () => {
+// Build custom images first, then start listening.
+// No timeout — let builds finish. Server starts even if Docker is down.
+ensureCustomImages()
+  .then(() => cleanupOldContainers())
+  .catch((err) => console.log('[startup] image build skipped:', err.message))
+  .then(async () => {
   const dockerOk = await checkDocker();
   server.listen(PORT, () => {
     console.log(`\n  Sheller  ▸  http://localhost:${PORT}${dockerOk ? '' : '  (Docker not running — terminal sessions unavailable)'}\n`);
-  });
-}).catch(err => {
-  console.log("[startup] ensureCustomImages skipped:", err.message);
-  // Start anyway — containers will fall back to pulling base images
-  server.listen(PORT, () => {
-    console.log(`\n  Sheller  ▸  http://localhost:${PORT}  (image build skipped)\n`);
   });
 });
 

@@ -727,7 +727,6 @@ body::before {
   background: #0d1117;
 }
 
-
 /* ═══════════════════════════════════════════════════════════
    Skill Level Survey Modal
    ═══════════════════════════════════════════════════════════ */
@@ -977,163 +976,425 @@ body::before {
 
 
 /* ═══════════════════════════════════════════════════════════
-   Vainko Chat — Full-Screen Overlay
+   Vainko Chat — Full-Screen Overlay (3-column Linear-style)
    ═══════════════════════════════════════════════════════════ */
 .vainko-chat-overlay {
   position: fixed;
   inset: 0;
   z-index: 5000;
-  background: var(--bg);
+  background: #0a0a0a;
   display: flex;
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  color: #f0f0f0;
 }
 
-.vainko-chat-sidebar {
-  width: 240px;
-  background: var(--bg3);
-  border-right: 1px solid var(--border);
+/* ── COL 1: SIDEBAR (280px) ── */
+.v-sidebar {
+  width: 280px;
+  min-width: 280px;
+  height: 100vh;
+  background: #111111;
+  border-right: 1px solid #1e1e1e;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+}
+.v-sidebar::-webkit-scrollbar { width: 4px; }
+.v-sidebar::-webkit-scrollbar-track { background: transparent; }
+.v-sidebar::-webkit-scrollbar-thumb { background: #1e1e1e; border-radius: 2px; }
+
+.v-sidebar-header {
+  padding: 24px 20px 16px;
+  border-bottom: 1px solid #1e1e1e;
+}
+.v-sidebar-brand {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f0f0f0;
+}
+.v-sidebar-skill { margin-top: 8px; }
+
+.v-skill-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+.v-skill-pill.beginner     { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
+.v-skill-pill.intermediate { background: rgba(234, 179, 8, 0.12); color: #eab308; }
+.v-skill-pill.experienced  { background: rgba(124, 58, 237, 0.15); color: #7c3aed; }
+
+.v-sidebar-section {
+  padding: 20px 20px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #666666;
+}
+
+.v-lesson-list {
+  padding: 0 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.v-lesson-card {
+  padding: 12px 14px;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.v-lesson-card:hover { background: rgba(255,255,255,0.03); }
+.v-lesson-card.active {
+  background: rgba(124, 58, 237, 0.06);
+  border-left-color: #7c3aed;
+}
+.v-lesson-card-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #f0f0f0;
+  margin-bottom: 3px;
+}
+.v-lesson-card-desc {
+  font-size: 11px;
+  color: #666666;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+.v-lesson-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.v-diff-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.v-diff-pill.beginner     { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
+.v-diff-pill.intermediate { background: rgba(234, 179, 8, 0.12); color: #eab308; }
+.v-lesson-card-time {
+  font-size: 10px;
+  color: #444444;
+}
+
+/* ── COL 2: STEPS PANEL (400px) ── */
+.v-steps-panel {
+  width: 400px;
+  min-width: 400px;
+  height: 100vh;
+  background: #0a0a0a;
+  border-right: 1px solid #1e1e1e;
+  display: none;
+  flex-direction: column;
+}
+.v-steps-panel.visible { display: flex; }
+
+.v-steps-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #1e1e1e;
   flex-shrink: 0;
 }
-.vainko-chat-sidebar-header {
-  padding: 20px 16px;
-  border-bottom: 1px solid var(--border);
+.v-steps-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f0f0f0;
+  margin-bottom: 12px;
 }
-.vainko-chat-sidebar-header h3 {
-  color: #a78bfa;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+.v-steps-progress {
+  width: 100%;
+  height: 3px;
+  background: #1e1e1e;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.v-steps-progress-fill {
+  height: 100%;
+  background: #7c3aed;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+.v-steps-progress-label {
+  font-size: 11px;
+  color: #666666;
+  margin-top: 6px;
 }
 
-.vainko-lesson-list { flex: 1; overflow-y: auto; padding: 8px; }
-.vainko-lesson-item {
-  padding: 12px 14px;
-  border-radius: 8px;
-  color: var(--text-dim);
-  font-size: 0.85rem;
+.v-steps-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.v-steps-list::-webkit-scrollbar { width: 4px; }
+.v-steps-list::-webkit-scrollbar-track { background: transparent; }
+.v-steps-list::-webkit-scrollbar-thumb { background: #1e1e1e; border-radius: 2px; }
+
+.v-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
   cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: 4px;
+  transition: background 0.15s, border-color 0.15s;
 }
-.vainko-lesson-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
-.vainko-lesson-item.active { background: rgba(124,58,237,0.15); color: #a78bfa; }
+.v-step-item:hover { background: rgba(255,255,255,0.02); }
+.v-step-item.active {
+  background: rgba(124, 58, 237, 0.06);
+  border-left-color: #7c3aed;
+}
 
-.vainko-chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.v-step-checkbox {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border-radius: 50%;
+  border: 2px solid #444444;
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+.v-step-item.done .v-step-checkbox {
+  border-color: #7c3aed;
+  background: #7c3aed;
+}
+.v-step-item.done .v-step-checkbox::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: #fff;
+  border-radius: 50%;
+}
 
-.vainko-chat-topbar {
+.v-step-content { flex: 1; }
+.v-step-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #f0f0f0;
+  margin-bottom: 2px;
+}
+.v-step-desc {
+  font-size: 11px;
+  color: #666666;
+  line-height: 1.4;
+}
+.v-step-item.done .v-step-title { color: #666666; }
+.v-step-item.done .v-step-desc  { color: #444444; }
+
+.v-steps-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #1e1e1e;
+  flex-shrink: 0;
+}
+.v-ask-step-btn {
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #f0f0f0;
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+.v-ask-step-btn:hover { background: rgba(124, 58, 237, 0.25); }
+
+.v-lesson-complete {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 12px;
+  padding: 40px;
+}
+.v-lesson-complete.visible { display: flex; }
+.v-lesson-complete-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(124, 58, 237, 0.15);
+  border: 2px solid #7c3aed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.v-lesson-complete-icon svg { width: 22px; height: 22px; }
+.v-lesson-complete-text { font-size: 15px; font-weight: 600; color: #f0f0f0; }
+.v-lesson-complete-sub { font-size: 12px; color: #666666; }
+
+/* ── COL 3: CHAT ── */
+.v-chat-column {
+  flex: 1;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.v-chat-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg3);
+  padding: 12px 20px;
+  border-bottom: 1px solid #1e1e1e;
+  background: #111111;
   flex-shrink: 0;
 }
-.vainko-chat-topbar-left { display: flex; align-items: center; gap: 12px; }
-.vainko-back-btn {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  padding: 6px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.82rem;
-  transition: all 0.2s;
-}
-.vainko-back-btn:hover { background: var(--bg3); color: var(--text); }
-.vainko-chat-logo { font-size: 1.1rem; font-weight: 700; color: #a78bfa; }
-
-.skill-badge {
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.skill-badge.beginner     { background: rgba(34,197,94,0.15); color: #22c55e; }
-.skill-badge.intermediate { background: rgba(234,179,8,0.15); color: #eab308; }
-.skill-badge.experienced  { background: rgba(239,68,68,0.15); color: #ef4444; }
-
-.vainko-chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px 20px;
+.v-chat-topbar-left {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 16px;
 }
+.v-back-link {
+  font-size: 13px;
+  color: #666666;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Inter', -apple-system, sans-serif;
+  transition: color 0.15s;
+}
+.v-back-link:hover { color: #f0f0f0; }
+.v-chat-wordmark {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f0f0f0;
+  letter-spacing: 0.05em;
+}
 
-.vainko-msg {
-  max-width: 720px;
-  line-height: 1.7;
-  font-size: 0.9rem;
+.v-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 24px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.v-chat-messages::-webkit-scrollbar { width: 4px; }
+.v-chat-messages::-webkit-scrollbar-track { background: transparent; }
+.v-chat-messages::-webkit-scrollbar-thumb { background: #1e1e1e; border-radius: 2px; }
+
+.v-msg {
+  max-width: 75%;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.55;
+  border-radius: 8px;
+  word-wrap: break-word;
   white-space: pre-wrap;
 }
-.vainko-msg.assistant { color: var(--text-dim); }
-.vainko-msg.user {
+.v-msg.user {
   align-self: flex-end;
-  background: var(--bg3);
-  padding: 12px 16px;
-  border-radius: 12px 12px 2px 12px;
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: rgba(124, 58, 237, 0.2);
+  color: #f0f0f0;
+  border-bottom-right-radius: 2px;
 }
-.vainko-typing { color: var(--text-muted); font-style: italic; }
+.v-msg.assistant {
+  align-self: flex-start;
+  background: #111111;
+  color: #f0f0f0;
+  border-bottom-left-radius: 2px;
+}
 
-.cmd-chip {
+.v-cmd-chip {
   display: inline-block;
-  background: var(--bg);
-  padding: 4px 12px;
-  border-radius: 6px;
-  font-family: var(--mono);
-  color: var(--green);
-  font-size: 0.82rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid #1e1e1e;
+  padding: 2px 8px;
+  border-radius: 4px;
   cursor: pointer;
-  margin: 4px 2px;
-  border: 1px solid var(--border);
-  transition: all 0.2s;
+  transition: background 0.15s;
+  vertical-align: baseline;
 }
-.cmd-chip:hover { background: var(--bg3); border-color: var(--green); }
+.v-cmd-chip:hover { background: rgba(255,255,255,0.1); }
 
-.vainko-chat-inputbar {
-  padding: 16px 20px;
-  border-top: 1px solid var(--border);
-  background: var(--bg3);
+.v-typing-indicator {
+  align-self: flex-start;
+  padding: 10px 14px;
+  background: #111111;
+  border-radius: 8px;
+  border-bottom-left-radius: 2px;
   display: flex;
-  gap: 10px;
+  gap: 4px;
+  align-items: center;
+}
+.v-typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #666666;
+  animation: vTypingBounce 1.4s infinite ease-in-out;
+}
+.v-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.v-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes vTypingBounce {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+.v-chat-inputbar {
+  padding: 12px 20px 16px;
+  border-top: 1px solid #1e1e1e;
+  display: flex;
+  gap: 8px;
+  background: #111111;
   flex-shrink: 0;
 }
-.vainko-chat-inputbar input {
+.v-chat-inputbar input {
   flex: 1;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 12px 16px;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-family: var(--sans);
+  background: #0a0a0a;
+  border: 1px solid #1e1e1e;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #f0f0f0;
   outline: none;
+  transition: border-color 0.15s;
+  font-family: 'Inter', -apple-system, sans-serif;
 }
-.vainko-chat-inputbar input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.15); }
-.vainko-chat-inputbar button {
+.v-chat-inputbar input::placeholder { color: #444444; }
+.v-chat-inputbar input:focus { border-color: rgba(124, 58, 237, 0.3); }
+.v-chat-inputbar button {
+  padding: 10px 18px;
+  font-size: 12px;
+  font-weight: 600;
   background: #7c3aed;
   color: #fff;
-  padding: 12px 24px;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s;
-  font-family: var(--sans);
+  transition: opacity 0.15s;
+  font-family: 'Inter', -apple-system, sans-serif;
+  border: none;
 }
-.vainko-chat-inputbar button:hover { background: #6d28d9; }
+.v-chat-inputbar button:hover { opacity: 0.85; }
 
 /* ─── Responsive tweaks for new components ────────────────── */
 @media (max-width: 768px) {
   .ask-vainko-popup { width: calc(100vw - 32px); right: 16px; bottom: 72px; }
-  .vainko-chat-sidebar { display: none; }
+  .v-sidebar { display: none; }
+  .v-steps-panel { display: none !important; }
   .user-email { display: none !important; }
 }
 
