@@ -1046,16 +1046,21 @@ body::before {
 }
 
 .v-lesson-card {
-  padding: 12px 14px;
+  padding: 14px 16px;
   border-radius: 6px;
   border-left: 3px solid transparent;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: all 0.2s;
 }
-.v-lesson-card:hover { background: rgba(255,255,255,0.03); }
+.v-lesson-card:hover {
+  background: rgba(255,255,255,0.03);
+  border-left-color: rgba(124, 58, 237, 0.6);
+  box-shadow: -4px 0 12px rgba(124, 58, 237, 0.15);
+}
 .v-lesson-card.active {
-  background: rgba(124, 58, 237, 0.06);
+  background: rgba(124, 58, 237, 0.10);
   border-left-color: #7c3aed;
+  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.25);
 }
 .v-lesson-card-title {
   font-size: 13px;
@@ -1112,17 +1117,25 @@ body::before {
 }
 .v-main-progress {
   width: 100%;
-  height: 4px;
+  height: 5px;
   background: #1e1e1e;
-  border-radius: 2px;
+  border-radius: 99px;
   overflow: hidden;
 }
 .v-main-progress-fill {
   height: 100%;
   background: #7c3aed;
-  border-radius: 2px;
+  border-radius: 99px;
   transition: width 0.3s ease;
   width: 0%;
+  position: relative;
+}
+.v-main-progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+  animation: shimmer 2s infinite linear;
 }
 .v-main-progress-label {
   font-size: 11px;
@@ -1155,7 +1168,7 @@ body::before {
   border: 1px solid #1e1e1e;
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s ease;
   white-space: nowrap;
 }
 .v-step-nav-item:hover { border-color: #333333; color: #999999; }
@@ -1163,6 +1176,7 @@ body::before {
   background: rgba(124, 58, 237, 0.1);
   border-color: rgba(124, 58, 237, 0.4);
   color: #f0f0f0;
+  box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.5), 0 2px 8px rgba(124, 58, 237, 0.2);
 }
 .v-step-nav-item.completed {
   background: rgba(34, 197, 94, 0.08);
@@ -1186,10 +1200,12 @@ body::before {
 .v-step-nav-item.active .v-step-nav-check {
   border-color: #7c3aed;
   background: rgba(124, 58, 237, 0.3);
+  animation: stepPulse 2s infinite;
 }
 .v-step-nav-item.completed .v-step-nav-check {
   border-color: #22c55e;
   background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 212, 122, 0.4);
 }
 .v-step-nav-item.completed .v-step-nav-check::after {
   content: '✓';
@@ -1213,17 +1229,35 @@ body::before {
 .v-main-content::-webkit-scrollbar-thumb { background: #1e1e1e; border-radius: 2px; }
 
 .v-welcome-state {
+  position: relative;
   text-align: center;
   color: #666666;
   padding: 60px 20px;
 }
+.v-welcome-state::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 300px;
+  height: 300px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.05) 0%, transparent 70%);
+  animation: welcomePulse 4s ease-in-out infinite;
+  pointer-events: none;
+}
 .v-welcome-state h2 {
+  position: relative;
   font-size: 20px;
   font-weight: 600;
-  color: #f0f0f0;
   margin-bottom: 8px;
+  background: linear-gradient(135deg, #f0f0f0 0%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 .v-welcome-state p {
+  position: relative;
   font-size: 13px;
   line-height: 1.6;
   max-width: 360px;
@@ -1242,20 +1276,23 @@ body::before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  font-size: 11px;
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
   font-weight: 700;
-  background: #7c3aed;
-  color: #fff;
+  background: transparent;
+  border: 2px solid #7c3aed;
+  color: #a78bfa;
   border-radius: 50%;
   margin-right: 10px;
+  box-shadow: 0 0 8px rgba(124, 58, 237, 0.4);
 }
 
 /* ── Info Card (Phase 1) ── */
 .v-info-card {
-  background: #111111;
+  background: linear-gradient(160deg, #131320 0%, #111111 100%);
   border: 1px solid #1e1e1e;
+  border-top: 2px solid #7c3aed;
   border-radius: 10px;
   padding: 28px;
 }
@@ -1276,9 +1313,11 @@ body::before {
 .v-highlight {
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
+  font-weight: 500;
   background: rgba(124, 58, 237, 0.15);
   color: #a78bfa;
-  padding: 2px 6px;
+  padding: 3px 8px;
+  border: 1px solid rgba(124, 58, 237, 0.25);
   border-radius: 4px;
 }
 .v-info-card-btn {
@@ -1286,20 +1325,25 @@ body::before {
   padding: 12px 20px;
   font-size: 13px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   background: #7c3aed;
   color: #fff;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: all 0.2s;
   font-family: 'Inter', -apple-system, sans-serif;
 }
-.v-info-card-btn:hover { opacity: 0.85; }
+.v-info-card-btn:hover {
+  background: #6d28d9;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35);
+}
 
 /* ── MCQ Card (Phase 2) ── */
 .v-mcq-card {
   background: #111111;
   border: 1px solid #1e1e1e;
+  border-top: 2px solid #7c3aed;
   border-radius: 10px;
   padding: 28px;
 }
@@ -1324,7 +1368,8 @@ body::before {
   margin-bottom: 16px;
 }
 .v-mcq-option {
-  padding: 12px 16px;
+  position: relative;
+  padding: 14px 18px;
   font-size: 13px;
   font-family: 'JetBrains Mono', monospace;
   background: #0a0a0a;
@@ -1336,29 +1381,57 @@ body::before {
   transition: all 0.15s;
 }
 .v-mcq-option:hover:not(:disabled) {
-  border-color: #333333;
-  background: rgba(255,255,255,0.02);
+  border-color: rgba(124, 58, 237, 0.5);
+  background: rgba(124, 58, 237, 0.06);
 }
 .v-mcq-option.correct {
   border-color: #22c55e;
   background: rgba(34, 197, 94, 0.1);
   color: #22c55e;
 }
+.v-mcq-option.correct::after {
+  content: '✓';
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  font-weight: 700;
+}
 .v-mcq-option.wrong {
   border-color: #ef4444;
   background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
 }
+.v-mcq-option.wrong::after {
+  content: '✕';
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  font-weight: 700;
+}
 .v-mcq-option:disabled { cursor: default; }
 
 .v-mcq-feedback {
+  display: inline-block;
   font-size: 12px;
   font-weight: 500;
   min-height: 18px;
   margin-bottom: 12px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: transparent;
 }
-.v-mcq-feedback.correct { color: #22c55e; }
-.v-mcq-feedback.wrong { color: #ef4444; }
+.v-mcq-feedback.correct {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+.v-mcq-feedback.wrong {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
 
 .v-mcq-continue-btn {
   display: none;
@@ -1366,21 +1439,29 @@ body::before {
   padding: 12px 20px;
   font-size: 13px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   background: #7c3aed;
   color: #fff;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: all 0.2s;
   font-family: 'Inter', -apple-system, sans-serif;
 }
-.v-mcq-continue-btn.visible { display: block; }
-.v-mcq-continue-btn:hover { opacity: 0.85; }
+.v-mcq-continue-btn.visible {
+  display: block;
+  animation: slideUp 0.2s ease;
+}
+.v-mcq-continue-btn:hover {
+  background: #6d28d9;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35);
+}
 
 /* ── Terminal Card (Phase 3) ── */
 .v-terminal-card {
   background: #111111;
   border: 1px solid #1e1e1e;
+  border-top: 2px solid #22c55e;
   border-radius: 10px;
   padding: 28px;
 }
@@ -1417,18 +1498,28 @@ body::before {
   border-bottom: 1px solid #1e1e1e;
 }
 .v-terminal-dot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
 }
-.v-terminal-dot.red { background: #ef4444; }
-.v-terminal-dot.yellow { background: #eab308; }
-.v-terminal-dot.green { background: #22c55e; }
+.v-terminal-dot.red {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+.v-terminal-dot.yellow {
+  background: #eab308;
+  box-shadow: 0 0 6px rgba(234, 179, 8, 0.5);
+}
+.v-terminal-dot.green {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+}
 
 .v-terminal-body {
   padding: 16px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
+  min-height: 80px;
 }
 .v-terminal-line {
   display: flex;
@@ -1462,13 +1553,18 @@ body::before {
   font-size: 12px;
   margin-top: 12px;
 }
+.v-terminal-error::before {
+  content: '⚠️ ';
+}
 .v-terminal-error.visible { display: block; }
 
 .v-terminal-success-output {
-  color: #666666;
+  color: #a0a0b8;
   margin-bottom: 12px;
   white-space: pre-wrap;
   font-size: 12px;
+  padding: 8px 0 8px 10px;
+  border-left: 2px solid rgba(34, 212, 122, 0.4);
 }
 
 .v-terminal-actions {
@@ -1481,7 +1577,7 @@ body::before {
   font-size: 12px;
   font-weight: 500;
   background: transparent;
-  border: 1px solid #333333;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: #666666;
   border-radius: 6px;
   cursor: pointer;
@@ -1489,7 +1585,8 @@ body::before {
   font-family: 'Inter', -apple-system, sans-serif;
 }
 .v-terminal-skip-btn:hover {
-  border-color: #444444;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
   color: #999999;
 }
 .v-terminal-complete-btn {
@@ -1498,16 +1595,23 @@ body::before {
   padding: 12px 20px;
   font-size: 13px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   background: #7c3aed;
   color: #fff;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: all 0.2s;
   font-family: 'Inter', -apple-system, sans-serif;
 }
-.v-terminal-complete-btn.visible { display: block; }
-.v-terminal-complete-btn:hover { opacity: 0.85; }
+.v-terminal-complete-btn.visible {
+  display: block;
+  animation: slideUp 0.2s ease;
+}
+.v-terminal-complete-btn:hover {
+  background: #6d28d9;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35);
+}
 
 /* ── Lesson Complete State ── */
 .v-lesson-complete {
@@ -1521,6 +1625,9 @@ body::before {
   text-align: center;
 }
 .v-lesson-complete.visible { display: flex; }
+.v-lesson-complete.visible .v-lesson-complete-icon {
+  animation: completePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 .v-lesson-complete-icon {
   width: 56px;
   height: 56px;
@@ -1532,7 +1639,14 @@ body::before {
   justify-content: center;
 }
 .v-lesson-complete-icon svg { width: 26px; height: 26px; }
-.v-lesson-complete-text { font-size: 18px; font-weight: 600; color: #f0f0f0; }
+.v-lesson-complete-text {
+  font-size: 18px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #f0f0f0 0%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
 .v-lesson-complete-sub { font-size: 13px; color: #666666; max-width: 300px; }
 
 /* ── Locked Lesson Cards ── */
@@ -1540,17 +1654,15 @@ body::before {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.v-lesson-card.locked::after {
-  content: 'Coming Soon';
-  display: block;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: #666666;
-  margin-top: 6px;
-  text-transform: uppercase;
+.v-lesson-card.locked .v-lesson-card-title::before {
+  content: '🔒 ';
+  font-size: 11px;
 }
-.v-lesson-card.locked:hover { background: transparent; }
+.v-lesson-card.locked:hover {
+  background: transparent;
+  border-left-color: transparent;
+  box-shadow: none;
+}
 
 /* ── COL 3: CHAT (340px fixed) ── */
 .v-chat-column {
@@ -1571,7 +1683,7 @@ body::before {
   justify-content: space-between;
   padding: 12px 20px;
   border-bottom: 1px solid #1e1e1e;
-  background: #111111;
+  background: linear-gradient(180deg, #161622 0%, #111111 100%);
   flex-shrink: 0;
 }
 .v-chat-topbar-left {
@@ -1593,8 +1705,9 @@ body::before {
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
   font-weight: 600;
-  color: #f0f0f0;
+  color: #a78bfa;
   letter-spacing: 0.05em;
+  text-shadow: 0 0 12px rgba(124, 58, 237, 0.4);
 }
 
 .v-chat-messages {
@@ -1620,13 +1733,15 @@ body::before {
 }
 .v-msg.user {
   align-self: flex-end;
-  background: rgba(124, 58, 237, 0.2);
+  background: rgba(124, 58, 237, 0.25);
+  border: 1px solid rgba(124, 58, 237, 0.3);
   color: #f0f0f0;
   border-bottom-right-radius: 2px;
 }
 .v-msg.assistant {
   align-self: flex-start;
   background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   color: #f0f0f0;
   border-bottom-left-radius: 2px;
 }
@@ -1659,7 +1774,7 @@ body::before {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #666666;
+  background: #a78bfa;
   animation: vTypingBounce 1.4s infinite ease-in-out;
 }
 .v-typing-dot:nth-child(2) { animation-delay: 0.2s; }
@@ -1690,20 +1805,58 @@ body::before {
   font-family: 'Inter', -apple-system, sans-serif;
 }
 .v-chat-inputbar input::placeholder { color: #444444; }
-.v-chat-inputbar input:focus { border-color: rgba(124, 58, 237, 0.3); }
+.v-chat-inputbar input:focus {
+  border-color: rgba(124, 58, 237, 0.4);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
 .v-chat-inputbar button {
   padding: 10px 18px;
   font-size: 12px;
   font-weight: 600;
-  background: #7c3aed;
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
   color: #fff;
   border-radius: 6px;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: all 0.2s;
   font-family: 'Inter', -apple-system, sans-serif;
   border: none;
 }
-.v-chat-inputbar button:hover { opacity: 0.85; }
+.v-chat-inputbar button:hover {
+  box-shadow: 0 2px 10px rgba(124, 58, 237, 0.35);
+}
+
+/* ── Vainko Animations ── */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes stepPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes welcomePulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.95); }
+  50% { transform: translate(-50%, -50%) scale(1.05); }
+}
+
+@keyframes completePop {
+  0% { transform: scale(0.5); opacity: 0; }
+  70% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
 
 /* ─── Responsive tweaks for new components ────────────────── */
 @media (max-width: 768px) {

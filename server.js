@@ -498,7 +498,14 @@ app.post("/api/vainko", async (req, res) => {
 
     if (req.body.message) {
       const { message, os = 'Linux', skill = 'beginner' } = req.body;
-      systemPrompt = `You are VAINKO, an AI terminal trainer. Be precise and factual. Never give wrong commands. Nano: save=Ctrl+O then Enter, exit=Ctrl+X. Vim: save and exit=:wq. Always verify syntax. Wrap every runnable command in [CMD: command] tags. Keep answers short and accurate. The user is on ${os}, skill level: ${skill}.`;
+      systemPrompt = `You are VAINKO, a chill terminal coach. Rules:
+- MAX 2-3 short sentences
+- Always explain what the user's command does (even if wrong for this task)
+- Then explain the correct command briefly
+- Wrap commands in [CMD: command] format
+- Be casual, not textbook-y
+- Example: "ls lists files, but you need [CMD: pwd] to see your current directory."
+OS: ${os}, skill: ${skill}`;
       userMessage = message;
     } else {
       // Raw format from vainko.html
@@ -513,7 +520,7 @@ app.post("/api/vainko", async (req, res) => {
       body: JSON.stringify({
         model: OLLAMA_MODEL,
         stream: false,
-        options: { num_predict: 100, temperature: 0.7 },
+        options: { num_predict: 100, temperature: 0.4 },
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }

@@ -892,7 +892,7 @@ function renderVainkoTerminalPhase(step, isCompleted) {
         completedOutput +
         '<div class="v-terminal-line">' +
           '<span class="' + promptClass + '" id="v-terminal-prompt">root@sheller:~$</span>' +
-          '<input type="text" class="v-terminal-input" id="v-terminal-input" placeholder="' + (isCompleted ? step.terminalExpected[0] : 'Type command here...') + '" onkeydown="if(event.key===\'Enter\')checkVainkoTerminalCommand()" ' + (isCompleted ? 'disabled' : '') + '/>' +
+          '<input type="text" class="v-terminal-input" id="v-terminal-input" autocomplete="off" spellcheck="false" placeholder="' + (isCompleted ? step.terminalExpected[0] : 'Type command here...') + '" onkeydown="if(event.key===\'Enter\')checkVainkoTerminalCommand()" ' + (isCompleted ? 'disabled' : '') + '/>' +
         '</div>' +
         '<div class="v-terminal-error" id="v-terminal-error">Command not correct. Try again.</div>' +
       '</div>' +
@@ -939,14 +939,16 @@ function checkVainkoTerminalCommand() {
     prompt.classList.add('error');
     error.classList.add('visible');
     
-    sendVainkoToApiSilent('User is on step ' + (window._vainkoActiveStep + 1) + ' of ' + lesson.title + '. They typed "' + command + '" but the correct command is "' + step.terminalExpected[0] + '". Give a hint without revealing the answer.');
+    // Give direct feedback: explain both commands briefly
+    const correctCmd = step.terminalExpected[0];
+    sendVainkoToApiSilent('Wrong command. User typed "' + command + '", correct is [CMD: ' + correctCmd + ']. Explain what both do in 2 sentences max.');
     
     setTimeout(() => {
       prompt.classList.remove('error');
       error.classList.remove('visible');
       input.value = '';
       input.focus();
-    }, 2000);
+    }, 3000);
   }
 }
 
