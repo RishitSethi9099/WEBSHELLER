@@ -7,146 +7,1632 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
   <style>
-    /* Standalone page overrides */
+    /* ── RESET ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; overflow: hidden; }
-    body { display: flex; }
-    .hidden { display: none !important; }
+    button { cursor: pointer; border: none; background: none; font: inherit; color: inherit; }
+    a { color: inherit; text-decoration: none; }
+    input { font: inherit; color: inherit; }
+
+    /* ── PALETTE ── */
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --border: #1e1e1e;
+      --text: #f0f0f0;
+      --text-muted: #666666;
+      --text-dim: #444444;
+      --purple: #7c3aed;
+      --purple-dim: rgba(124, 58, 237, 0.15);
+      --purple-border: rgba(124, 58, 237, 0.3);
+      --green: #22c55e;
+      --green-dim: rgba(34, 197, 94, 0.12);
+      --red: #ef4444;
+      --red-dim: rgba(239, 68, 68, 0.12);
+      --yellow: #eab308;
+      --yellow-dim: rgba(234, 179, 8, 0.12);
+      --mono: 'JetBrains Mono', 'Cascadia Code', monospace;
+      --sans: 'Inter', -apple-system, system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: row;
+    }
+
+    /* ════════════════════════════════════════════
+       COLUMN 1 — SIDEBAR (280px)
+       ════════════════════════════════════════════ */
+    .sidebar {
+      width: 280px;
+      min-width: 280px;
+      height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .sidebar-header {
+      padding: 24px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-brand {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .sidebar-skill {
+      margin-top: 8px;
+    }
+
+    .skill-pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 999px;
+      letter-spacing: 0.03em;
+    }
+    .skill-pill.beginner     { background: var(--green-dim); color: var(--green); }
+    .skill-pill.intermediate { background: var(--yellow-dim); color: var(--yellow); }
+    .skill-pill.experienced  { background: var(--purple-dim); color: var(--purple); }
+
+    .sidebar-section-title {
+      padding: 20px 20px 10px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .lesson-list {
+      padding: 0 12px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    /* ── Lesson Card ── */
+    .lesson-card {
+      padding: 14px 16px;
+      border-radius: 6px;
+      border-left: 3px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .lesson-card:hover:not(.locked) {
+      background: rgba(255,255,255,0.03);
+      border-left-color: rgba(124, 58, 237, 0.6);
+      box-shadow: -4px 0 12px rgba(124, 58, 237, 0.15);
+    }
+    .lesson-card.active {
+      background: rgba(124, 58, 237, 0.10);
+      border-left-color: var(--purple);
+      box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.25);
+    }
+    .lesson-card.locked {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .lesson-card.locked .lesson-card-title::before {
+      content: '🔒 ';
+      font-size: 11px;
+    }
+    .lesson-card.locked:hover {
+      background: transparent;
+      border-left-color: transparent;
+      box-shadow: none;
+    }
+
+    .lesson-card-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .lesson-card-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+    .lesson-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .difficulty-pill {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      letter-spacing: 0.02em;
+    }
+    .difficulty-pill.beginner     { background: var(--green-dim); color: var(--green); }
+    .difficulty-pill.intermediate { background: var(--yellow-dim); color: var(--yellow); }
+
+    .lesson-card-time {
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    /* ════════════════════════════════════════════
+       COLUMN 2 — MAIN LEARNING AREA (flex-1)
+       ════════════════════════════════════════════ */
+    .main-area {
+      flex: 1;
+      height: 100vh;
+      background: var(--bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .main-header {
+      padding: 20px 28px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .main-lesson-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+
+    /* Progress bar */
+    .main-progress {
+      width: 100%;
+      height: 5px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .main-progress-fill {
+      height: 100%;
+      background: var(--purple);
+      border-radius: 99px;
+      transition: width 0.3s ease;
+      width: 0%;
+      position: relative;
+    }
+    .main-progress-fill::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+      animation: shimmer 2s infinite linear;
+    }
+    .main-progress-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* Step navigation */
+    .step-nav {
+      display: flex;
+      gap: 8px;
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      overflow-x: auto;
+    }
+    .step-nav::-webkit-scrollbar { height: 3px; }
+    .step-nav::-webkit-scrollbar-track { background: transparent; }
+    .step-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .step-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .step-nav-item:hover:not(.locked) {
+      border-color: var(--purple-border);
+    }
+    .step-nav-item.active {
+      background: var(--purple-dim);
+      border-color: var(--purple);
+      color: var(--text);
+      box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.5), 0 2px 8px rgba(124, 58, 237, 0.2);
+    }
+    .step-nav-item.completed {
+      border-color: rgba(34, 197, 94, 0.3);
+      background: rgba(34, 197, 94, 0.08);
+      color: var(--green);
+    }
+    .step-nav-item.locked {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .step-nav-check {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+    .step-nav-item.active .step-nav-check {
+      border-color: var(--purple);
+      background: rgba(124, 58, 237, 0.3);
+      animation: stepPulse 2s infinite;
+    }
+    .step-nav-item.completed .step-nav-check {
+      background: var(--green);
+      border-color: var(--green);
+      box-shadow: 0 0 6px rgba(34, 212, 122, 0.4);
+    }
+    .step-nav-item.completed .step-nav-check::after {
+      content: '✓';
+      font-size: 10px;
+      color: #0a0a0a;
+      font-weight: 700;
+    }
+
+    /* Main content area */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px;
+    }
+    .main-content::-webkit-scrollbar { width: 4px; }
+    .main-content::-webkit-scrollbar-track { background: transparent; }
+    .main-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Welcome state */
+    .welcome-state {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      padding: 40px;
+    }
+    .welcome-state::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 300px;
+      height: 300px;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle, rgba(124, 58, 237, 0.05) 0%, transparent 70%);
+      animation: welcomePulse 4s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .welcome-state h2 {
+      position: relative;
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #f0f0f0 0%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .welcome-state p {
+      position: relative;
+      font-size: 14px;
+      color: var(--text-muted);
+      max-width: 400px;
+      line-height: 1.6;
+    }
+
+    /* Phase containers */
+    .phase-container {
+      display: none;
+    }
+    .phase-container.active {
+      display: block;
+    }
+
+    /* Phase 1 — Info Card */
+    .info-card {
+      background: linear-gradient(160deg, #131320 0%, #111111 100%);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--purple);
+      border-radius: 10px;
+      padding: 28px;
+      max-width: 700px;
+    }
+    .info-card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .info-card-title::before {
+      content: '1';
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: transparent;
+      border: 2px solid var(--purple);
+      font-size: 12px;
+      font-weight: 700;
+      color: #a78bfa;
+      box-shadow: 0 0 8px rgba(124, 58, 237, 0.4);
+    }
+    .info-card-content {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text);
+      margin-bottom: 24px;
+    }
+    .info-card-content .highlight {
+      color: #a78bfa;
+      font-weight: 500;
+      padding: 3px 8px;
+      background: var(--purple-dim);
+      border: 1px solid rgba(124, 58, 237, 0.25);
+      border-radius: 4px;
+    }
+    .info-card-btn {
+      padding: 12px 24px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      background: var(--purple);
+      color: #fff;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    .info-card-btn:hover {
+      background: #6d28d9;
+      box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35);
+    }
+
+    /* Phase 2 — MCQ */
+    .mcq-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--purple);
+      border-radius: 10px;
+      padding: 28px;
+      max-width: 700px;
+    }
+    .mcq-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .mcq-title::before {
+      content: '2';
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: transparent;
+      border: 2px solid var(--purple);
+      font-size: 12px;
+      font-weight: 700;
+      color: #a78bfa;
+      box-shadow: 0 0 8px rgba(124, 58, 237, 0.4);
+    }
+    .mcq-question {
+      font-size: 15px;
+      color: var(--text);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .mcq-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .mcq-option {
+      position: relative;
+      padding: 14px 18px;
+      border-radius: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      font-family: var(--mono);
+      color: var(--text);
+      text-align: left;
+      transition: all 0.15s;
+    }
+    .mcq-option:hover:not(.correct):not(.wrong):not(:disabled) {
+      border-color: rgba(124, 58, 237, 0.5);
+      background: rgba(124, 58, 237, 0.06);
+    }
+    .mcq-option.correct {
+      border-color: var(--green);
+      background: var(--green-dim);
+      color: var(--green);
+    }
+    .mcq-option.correct::after {
+      content: '✓';
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .mcq-option.wrong {
+      border-color: var(--red);
+      background: var(--red-dim);
+      color: var(--red);
+    }
+    .mcq-option.wrong::after {
+      content: '✕';
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .mcq-option:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    .mcq-feedback {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+      background: transparent;
+    }
+    .mcq-feedback.wrong {
+      display: inline-block;
+      background: var(--red-dim);
+      color: var(--red);
+    }
+    .mcq-feedback.correct {
+      display: inline-block;
+      background: var(--green-dim);
+      color: var(--green);
+    }
+    .mcq-continue-btn {
+      padding: 12px 24px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      background: var(--purple);
+      color: #fff;
+      border-radius: 6px;
+      transition: all 0.2s;
+      display: none;
+    }
+    .mcq-continue-btn.visible {
+      display: inline-block;
+      animation: slideUp 0.2s ease;
+    }
+    .mcq-continue-btn:hover {
+      background: #6d28d9;
+      box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35);
+    }
+
+    /* Phase 3 — Terminal */
+    .terminal-card {
+      max-width: 700px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--green);
+      border-radius: 10px;
+      padding: 28px;
+    }
+    .terminal-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .terminal-header-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .terminal-header-title::before {
+      content: '3';
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: transparent;
+      border: 2px solid var(--purple);
+      font-size: 12px;
+      font-weight: 700;
+      color: #a78bfa;
+      box-shadow: 0 0 8px rgba(124, 58, 237, 0.4);
+    }
+    .terminal-instruction {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    .fake-terminal {
+      background: #0d0d0d;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .terminal-titlebar {
+      background: #1a1a1a;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .terminal-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .terminal-dot.red {
+      background: #ff5f57;
+      box-shadow: 0 0 6px rgba(255, 95, 87, 0.5);
+    }
+    .terminal-dot.yellow {
+      background: #febc2e;
+      box-shadow: 0 0 6px rgba(254, 188, 46, 0.5);
+    }
+    .terminal-dot.green {
+      background: #28c840;
+      box-shadow: 0 0 6px rgba(40, 200, 64, 0.5);
+    }
+    .terminal-body {
+      padding: 16px;
+      min-height: 80px;
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+    .terminal-output {
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      white-space: pre-wrap;
+    }
+    .terminal-line {
+      display: flex;
+      align-items: center;
+    }
+    .terminal-prompt {
+      color: var(--green);
+      margin-right: 8px;
+      white-space: nowrap;
+    }
+    .terminal-prompt.error {
+      color: var(--red);
+    }
+    .terminal-prompt.success {
+      color: var(--green);
+    }
+    .terminal-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+    .terminal-input::placeholder {
+      color: var(--text-dim);
+    }
+    .terminal-error {
+      color: var(--red);
+      margin-top: 8px;
+      font-size: 12px;
+      display: none;
+    }
+    .terminal-error::before {
+      content: '⚠️ ';
+    }
+    .terminal-error.visible { display: block; }
+    .terminal-success-output {
+      color: #a0a0b8;
+      margin-top: 8px;
+      white-space: pre-wrap;
+      padding: 8px 0 8px 10px;
+      border-left: 2px solid rgba(34, 212, 122, 0.4);
+    }
+    .terminal-actions {
+      margin-top: 16px;
+      display: flex;
+      gap: 12px;
+    }
+    .terminal-skip-btn {
+      padding: 10px 18px;
+      font-size: 12px;
+      font-weight: 500;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .terminal-skip-btn:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+    }
+    .terminal-complete-btn {
+      padding: 10px 18px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      background: var(--purple);
+      color: #fff;
+      border-radius: 6px;
+      transition: all 0.2s;
+      display: none;
+    }
+    .terminal-complete-btn.visible {
+      display: inline-block;
+      animation: slideUp 0.2s ease;
+    }
+    .terminal-complete-btn:hover {
+      background: #6d28d9;
+      box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35);
+    }
+
+    /* Lesson complete */
+    .lesson-complete {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 16px;
+      padding: 40px;
+    }
+    .lesson-complete.visible { display: flex; }
+    .lesson-complete.visible .lesson-complete-icon {
+      animation: completePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .lesson-complete-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--purple-dim);
+      border: 2px solid var(--purple);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .lesson-complete-icon svg {
+      width: 26px;
+      height: 26px;
+      stroke: var(--purple);
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .lesson-complete-text {
+      font-size: 18px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #f0f0f0 0%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .lesson-complete-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      max-width: 300px;
+    }
+
+    /* ════════════════════════════════════════════
+       COLUMN 3 — VAINKO CHAT (340px)
+       ════════════════════════════════════════════ */
+    .chat-column {
+      width: 340px;
+      min-width: 340px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+    }
+
+    /* Top bar */
+    .chat-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #161622 0%, #111111 100%);
+      flex-shrink: 0;
+    }
+    .chat-topbar-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .chat-wordmark {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 600;
+      color: #a78bfa;
+      letter-spacing: 0.05em;
+      text-shadow: 0 0 12px rgba(124, 58, 237, 0.4);
+    }
+    .chat-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Messages area */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-track { background: transparent; }
+    .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Message bubbles */
+    .msg {
+      max-width: 90%;
+      padding: 10px 14px;
+      font-size: 13px;
+      line-height: 1.55;
+      border-radius: 8px;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: rgba(124, 58, 237, 0.25);
+      border: 1px solid rgba(124, 58, 237, 0.3);
+      color: var(--text);
+      border-bottom-right-radius: 2px;
+    }
+    .msg.assistant {
+      align-self: flex-start;
+      background: var(--bg);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      border-bottom-left-radius: 2px;
+    }
+
+    /* CMD chips */
+    .cmd-chip {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 12px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.15s;
+      vertical-align: baseline;
+    }
+    .cmd-chip:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    /* Typing indicator */
+    .typing-indicator {
+      align-self: flex-start;
+      padding: 10px 14px;
+      background: var(--bg);
+      border-radius: 8px;
+      border-bottom-left-radius: 2px;
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #a78bfa;
+      animation: typingBounce 1.4s infinite ease-in-out;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce {
+      0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+      30% { opacity: 1; transform: translateY(-3px); }
+    }
+
+    /* Input bar */
+    .chat-inputbar {
+      padding: 12px 16px 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .chat-inputbar input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .chat-inputbar input::placeholder {
+      color: var(--text-dim);
+    }
+    .chat-inputbar input:focus {
+      border-color: rgba(124, 58, 237, 0.4);
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+    }
+    .chat-inputbar button {
+      padding: 10px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #7c3aed, #5b21b6);
+      color: #fff;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    .chat-inputbar button:hover {
+      box-shadow: 0 2px 10px rgba(124, 58, 237, 0.35);
+    }
+
+    /* ── Animations ── */
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    @keyframes stepPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    @keyframes welcomePulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(0.95); }
+      50% { transform: translate(-50%, -50%) scale(1.05); }
+    }
+    @keyframes completePop {
+      0% { transform: scale(0.5); opacity: 0; }
+      70% { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
   </style>
 </head>
 <body>
 
-  <div class="vainko-chat-sidebar">
-    <div class="vainko-chat-sidebar-header"><h3>Lessons</h3></div>
-    <div class="vainko-lesson-list">
-      <div class="vainko-lesson-item" onclick="startLesson('navigation', this)">📂 Navigation</div>
-      <div class="vainko-lesson-item" onclick="startLesson('permissions', this)">🔒 Permissions</div>
-      <div class="vainko-lesson-item" onclick="startLesson('networking', this)">🌐 Networking</div>
-      <div class="vainko-lesson-item" onclick="startLesson('kali-tools', this)">🐉 Kali Tools</div>
-      <div class="vainko-lesson-item" onclick="startLesson('scripting', this)">📝 Scripting</div>
-      <div class="vainko-lesson-item" onclick="startLesson('packages', this)">📦 Package Management</div>
-    </div>
-  </div>
-
-  <div class="vainko-chat-main">
-    <div class="vainko-chat-topbar">
-      <div class="vainko-chat-topbar-left">
-        <a href="/" class="vainko-back-btn">← Back</a>
-        <span class="vainko-chat-logo">🤖 Vainko</span>
+  <!-- COLUMN 1 — SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">VAINKO</div>
+      <div class="sidebar-skill">
+        <span class="skill-pill" id="sidebar-skill-pill"></span>
       </div>
-      <span class="skill-badge" id="skill-badge-el"></span>
     </div>
-    <div class="vainko-chat-messages" id="vainko-messages"></div>
-    <div class="vainko-chat-inputbar">
-      <input type="text" id="vainko-input" placeholder="Ask Vainko anything..." onkeydown="if(event.key==='Enter')sendMessage()" />
+    <div class="sidebar-section-title">Lessons</div>
+    <div class="lesson-list" id="lesson-list"></div>
+  </aside>
+
+  <!-- COLUMN 2 — MAIN LEARNING AREA -->
+  <main class="main-area">
+    <div class="main-header" id="main-header" style="display: none;">
+      <div class="main-lesson-title" id="main-lesson-title"></div>
+      <div class="main-progress"><div class="main-progress-fill" id="main-progress-fill"></div></div>
+      <div class="main-progress-label" id="main-progress-label">0 / 5 steps</div>
+    </div>
+    <div class="step-nav" id="step-nav" style="display: none;"></div>
+    <div class="main-content" id="main-content">
+      <!-- Welcome state -->
+      <div class="welcome-state" id="welcome-state">
+        <h2>Welcome to Vainko</h2>
+        <p>Select a lesson from the sidebar to start learning. Each lesson has multiple steps with explanations, quizzes, and hands-on terminal challenges.</p>
+      </div>
+      
+      <!-- Phase containers (populated dynamically) -->
+      <div class="phase-container" id="phase-info"></div>
+      <div class="phase-container" id="phase-mcq"></div>
+      <div class="phase-container" id="phase-terminal"></div>
+      
+      <!-- Lesson complete -->
+      <div class="lesson-complete" id="lesson-complete">
+        <div class="lesson-complete-icon">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
+        <div class="lesson-complete-text">Lesson Complete!</div>
+        <div class="lesson-complete-sub">Great work! You've finished all the steps. Pick another lesson from the sidebar to keep learning.</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- COLUMN 3 — VAINKO CHAT -->
+  <aside class="chat-column">
+    <div class="chat-topbar">
+      <div class="chat-topbar-left">
+        <span class="chat-wordmark">Vainko</span>
+        <span class="chat-subtitle">watching your progress</span>
+      </div>
+    </div>
+    <div class="chat-messages" id="vainko-messages"></div>
+    <div class="chat-inputbar">
+      <input type="text" id="vainko-input" placeholder="Ask Vainko..." onkeydown="if(event.key==='Enter')sendMessage()" />
       <button onclick="sendMessage()">Send</button>
     </div>
-  </div>
+  </aside>
 
   <script>
+    // ═══════════════════════════════════════════════════════
+    //  DATA — Hardcoded Step Content
+    // ═══════════════════════════════════════════════════════
+
     const skillLevel = localStorage.getItem('sheller_skill_level') || 'beginner';
 
-    // Set badge
-    const badgeEl = document.getElementById('skill-badge-el');
-    badgeEl.className = 'skill-badge ' + skillLevel;
-    badgeEl.textContent = skillLevel === 'experienced' ? 'Experienced' : skillLevel === 'intermediate' ? 'Some Experience' : 'Beginner';
-
-    const lessonPrompts = {
-      'navigation':  'Teach me about terminal navigation — cd, ls, pwd, and moving around the filesystem.',
-      'permissions': 'Teach me about file permissions in Linux — chmod, chown, and understanding permission groups.',
-      'networking':  'Teach me about networking commands — ping, curl, wget, ifconfig, netstat, and more.',
-      'kali-tools':  'Teach me about essential Kali Linux tools — nmap, nikto, john, and other security tools.',
-      'scripting':   'Teach me bash scripting — variables, loops, conditionals, and writing simple scripts.',
-      'packages':    'Teach me about package management — apt, dpkg, and managing software in Linux.',
+    const LESSONS = {
+      navigation: {
+        title: 'Navigation',
+        desc: 'Move around the filesystem with confidence',
+        difficulty: 'beginner',
+        time: '~8 min',
+        available: true,
+        steps: [
+          {
+            title: 'Understanding the filesystem structure',
+            info: 'Linux organizes everything in a single tree starting at <span class="highlight">/</span>. Every file and directory lives under root <span class="highlight">/</span>. Common directories: <span class="highlight">/home</span> (user files), <span class="highlight">/etc</span> (config), <span class="highlight">/var</span> (logs), <span class="highlight">/tmp</span> (temporary).',
+            mcqQuestion: 'What directory contains system configuration files?',
+            mcqOptions: ['/config', '/etc', '/system', '/conf'],
+            mcqAnswer: '/etc',
+            terminalPrompt: 'Type the command to print your current directory',
+            terminalExpected: ['pwd'],
+            terminalOutput: '/home/user'
+          },
+          {
+            title: 'Moving between directories with cd',
+            info: '<span class="highlight">cd</span> (change directory) moves you between directories. <span class="highlight">cd /etc</span> goes to /etc. <span class="highlight">cd ..</span> goes up one level. <span class="highlight">cd ~</span> or just <span class="highlight">cd</span> goes home. <span class="highlight">cd -</span> goes to previous directory.',
+            mcqQuestion: 'How do you go up one directory level?',
+            mcqOptions: ['cd up', 'cd ..', 'cd /', 'cd back'],
+            mcqAnswer: 'cd ..',
+            terminalPrompt: 'Navigate to the /etc directory',
+            terminalExpected: ['cd /etc', 'cd/etc'],
+            terminalOutput: ''
+          },
+          {
+            title: 'Listing contents with ls and flags',
+            info: '<span class="highlight">ls</span> lists directory contents. Useful flags: <span class="highlight">-l</span> (long format with permissions), <span class="highlight">-a</span> (show hidden files starting with .), <span class="highlight">-h</span> (human readable sizes), <span class="highlight">-la</span> combines them.',
+            mcqQuestion: 'Which flag shows hidden files?',
+            mcqOptions: ['-h', '-l', '-a', '-r'],
+            mcqAnswer: '-a',
+            terminalPrompt: 'List all files including hidden ones in long format',
+            terminalExpected: ['ls -la', 'ls -al', 'ls -l -a', 'ls -a -l'],
+            terminalOutput: 'total 32\ndrwxr-xr-x  5 user user 4096 Mar  3 10:00 .\ndrwxr-xr-x  3 root root 4096 Mar  1 09:00 ..\n-rw-------  1 user user  220 Mar  1 09:00 .bash_history\n-rw-r--r--  1 user user  807 Mar  1 09:00 .bashrc\ndrwxr-xr-x  2 user user 4096 Mar  2 14:00 Documents'
+          },
+          {
+            title: 'Understanding absolute vs relative paths',
+            info: '<span class="highlight">Absolute paths</span> start from / and always work regardless of where you are. <span class="highlight">Relative paths</span> are relative to your current location. <span class="highlight">/etc/passwd</span> is absolute. <span class="highlight">../config</span> is relative.',
+            mcqQuestion: 'Which is an absolute path?',
+            mcqOptions: ['../etc', 'etc/passwd', '/etc/passwd', './passwd'],
+            mcqAnswer: '/etc/passwd',
+            terminalPrompt: 'Navigate to /var/log using an absolute path',
+            terminalExpected: ['cd /var/log'],
+            terminalOutput: ''
+          },
+          {
+            title: 'Using pwd and tab completion',
+            info: '<span class="highlight">pwd</span> prints your current working directory. <span class="highlight">Tab completion</span> auto-completes file and directory names — type part of a name and press Tab. Double Tab shows all options.',
+            mcqQuestion: 'What does pwd stand for?',
+            mcqOptions: ['Print Working Directory', 'Path Working Dir', 'Present Working Directory', 'Print Where Directory'],
+            mcqAnswer: 'Print Working Directory',
+            terminalPrompt: 'Print your current working directory',
+            terminalExpected: ['pwd'],
+            terminalOutput: '/var/log'
+          }
+        ]
+      },
+      permissions: {
+        title: 'Permissions',
+        desc: 'Control who can read, write, and execute files',
+        difficulty: 'beginner',
+        time: '~10 min',
+        available: true,
+        steps: [
+          {
+            title: 'Understanding rwx notation',
+            info: 'Every file has permissions for 3 groups: <span class="highlight">owner</span>, <span class="highlight">group</span>, <span class="highlight">others</span>. Each has <span class="highlight">read(r=4)</span>, <span class="highlight">write(w=2)</span>, <span class="highlight">execute(x=1)</span>. -rwxr-xr-- means owner can do everything, group can read+execute, others can only read.',
+            mcqQuestion: 'What does \'w\' represent in permissions?',
+            mcqOptions: ['write', 'wide', 'work', 'watch'],
+            mcqAnswer: 'write',
+            terminalPrompt: 'List files with their permissions',
+            terminalExpected: ['ls -l', 'ls -la', 'ls -al'],
+            terminalOutput: 'total 8\n-rw-r--r-- 1 user user 1234 Mar  3 10:00 file.txt\ndrwxr-xr-x 2 user user 4096 Mar  3 09:00 scripts'
+          },
+          {
+            title: 'Reading permission strings',
+            info: 'Permission string <span class="highlight">-rwxr-xr--</span> has 10 characters. First is file type (<span class="highlight">-</span> file, <span class="highlight">d</span> directory). Next 3 are owner permissions. Next 3 are group. Last 3 are others.',
+            mcqQuestion: 'What does \'d\' at the start of a permission string mean?',
+            mcqOptions: ['deleted', 'directory', 'daemon', 'default'],
+            mcqAnswer: 'directory',
+            terminalPrompt: 'Show permissions of files in /etc',
+            terminalExpected: ['ls -l /etc', 'ls -la /etc', 'ls -al /etc'],
+            terminalOutput: 'total 1024\ndrwxr-xr-x  2 root root  4096 Mar  1 10:00 apt\n-rw-r--r--  1 root root  2319 Mar  1 10:00 bash.bashrc\n-rw-r--r--  1 root root  1234 Mar  1 10:00 hosts'
+          },
+          {
+            title: 'Using chmod with numbers',
+            info: '<span class="highlight">chmod</span> with numbers changes permissions. Each permission group is a sum: <span class="highlight">r=4, w=2, x=1</span>. <span class="highlight">chmod 755</span> means owner=7(rwx), group=5(r-x), others=5(r-x). <span class="highlight">chmod 644</span> is common for files.',
+            mcqQuestion: 'What numeric value represents read and write only?',
+            mcqOptions: ['5', '6', '7', '3'],
+            mcqAnswer: '6',
+            terminalPrompt: 'Give owner full permissions, group and others read only',
+            terminalExpected: ['chmod 644', 'chmod 644 file', 'chmod 644 file.txt'],
+            terminalOutput: ''
+          },
+          {
+            title: 'Using chmod with symbols',
+            info: 'chmod with symbols: <span class="highlight">u</span>=user/owner, <span class="highlight">g</span>=group, <span class="highlight">o</span>=others, <span class="highlight">a</span>=all. <span class="highlight">+</span> adds, <span class="highlight">-</span> removes, <span class="highlight">=</span> sets exactly. <span class="highlight">chmod u+x</span> adds execute for owner. <span class="highlight">chmod go-w</span> removes write from group and others.',
+            mcqQuestion: 'How do you add execute permission for the owner?',
+            mcqOptions: ['chmod +x', 'chmod u+x', 'chmod o+x', 'chmod a-x'],
+            mcqAnswer: 'chmod u+x',
+            terminalPrompt: 'Remove write permission from others on a file',
+            terminalExpected: ['chmod o-w', 'chmod o-w file', 'chmod o-w file.txt'],
+            terminalOutput: ''
+          },
+          {
+            title: 'Changing ownership with chown',
+            info: '<span class="highlight">chown</span> changes file ownership. <span class="highlight">chown user:group file</span> changes both owner and group. <span class="highlight">chown john file</span> changes owner to john. <span class="highlight">chown :staff file</span> changes only the group. Requires sudo for files you don\'t own.',
+            mcqQuestion: 'What command changes file ownership?',
+            mcqOptions: ['chmod', 'chown', 'chgrp only', 'usermod'],
+            mcqAnswer: 'chown',
+            terminalPrompt: 'Change owner of a file to root',
+            terminalExpected: ['chown root', 'chown root file', 'chown root file.txt', 'sudo chown root', 'sudo chown root file'],
+            terminalOutput: ''
+          }
+        ]
+      },
+      networking: {
+        title: 'Networking',
+        desc: 'Inspect and troubleshoot network connections',
+        difficulty: 'intermediate',
+        time: '~12 min',
+        available: false,
+        steps: []
+      },
+      'kali-tools': {
+        title: 'Kali Tools',
+        desc: 'Essential security tools in Kali Linux',
+        difficulty: 'intermediate',
+        time: '~15 min',
+        available: false,
+        steps: []
+      },
+      scripting: {
+        title: 'Scripting',
+        desc: 'Automate tasks with bash scripts',
+        difficulty: 'intermediate',
+        time: '~12 min',
+        available: false,
+        steps: []
+      },
+      packages: {
+        title: 'Package Management',
+        desc: 'Install, update, and remove software',
+        difficulty: 'beginner',
+        time: '~8 min',
+        available: false,
+        steps: []
+      }
     };
 
-    // Greeting
-    let greeting = '';
-    if (skillLevel === 'beginner') {
-      greeting = "Hey! 👋 Let's start from zero — I'll walk you through everything step by step. Pick a lesson from the sidebar or just ask me anything!";
-    } else if (skillLevel === 'intermediate') {
-      greeting = "Welcome back! 👋 Let's level up what you already know. Pick a topic from the sidebar or ask me anything!";
-    } else {
-      greeting = "Hey! 👋 I'll keep it advanced — just ask me anything or pick a challenge from the sidebar.";
-    }
-    appendMsg('assistant', greeting);
+    // ═══════════════════════════════════════════════════════
+    //  STATE
+    // ═══════════════════════════════════════════════════════
+    let activeLesson = null;
+    let activeStepIndex = 0;
+    let currentPhase = 1; // 1=info, 2=mcq, 3=terminal
+    let completedSteps = {}; // { lessonId: Set<index> }
+    let stepPhases = {}; // { lessonId: { stepIndex: currentPhase } }
 
+    // ═══════════════════════════════════════════════════════
+    //  INIT
+    // ═══════════════════════════════════════════════════════
+    (function init() {
+      // Skill pills
+      const skillText = skillLevel === 'experienced' ? 'Experienced'
+                      : skillLevel === 'intermediate' ? 'Intermediate'
+                      : 'Beginner';
+      document.getElementById('sidebar-skill-pill').className = 'skill-pill ' + skillLevel;
+      document.getElementById('sidebar-skill-pill').textContent = skillText;
+
+      // Render lesson cards
+      const listEl = document.getElementById('lesson-list');
+      for (const [id, lesson] of Object.entries(LESSONS)) {
+        const card = document.createElement('div');
+        card.className = 'lesson-card' + (lesson.available ? '' : ' locked');
+        card.dataset.lessonId = id;
+        if (lesson.available) {
+          card.onclick = () => selectLesson(id);
+        }
+        card.innerHTML =
+          '<div class="lesson-card-title">' + lesson.title + '</div>' +
+          '<div class="lesson-card-desc">' + lesson.desc + '</div>' +
+          '<div class="lesson-card-meta">' +
+            '<span class="difficulty-pill ' + lesson.difficulty + '">' + (lesson.difficulty === 'beginner' ? 'Beginner' : 'Intermediate') + '</span>' +
+            '<span class="lesson-card-time">' + lesson.time + '</span>' +
+          '</div>';
+        listEl.appendChild(card);
+      }
+
+      // Greeting in chat
+      appendMsg('assistant', 'Select a lesson from the sidebar to begin. I\'ll guide you through each step and help when you need it.');
+    })();
+
+    // ═══════════════════════════════════════════════════════
+    //  LESSON SELECTION
+    // ═══════════════════════════════════════════════════════
+    function selectLesson(id) {
+      const lesson = LESSONS[id];
+      if (!lesson || !lesson.available) return;
+
+      activeLesson = id;
+      activeStepIndex = 0;
+      currentPhase = 1;
+      
+      if (!completedSteps[id]) completedSteps[id] = new Set();
+      if (!stepPhases[id]) stepPhases[id] = {};
+
+      // Highlight sidebar card
+      document.querySelectorAll('.lesson-card').forEach(c => c.classList.remove('active'));
+      const card = document.querySelector('.lesson-card[data-lesson-id="' + id + '"]');
+      if (card) card.classList.add('active');
+
+      // Show header and step nav
+      document.getElementById('main-header').style.display = 'block';
+      document.getElementById('step-nav').style.display = 'flex';
+      document.getElementById('welcome-state').style.display = 'none';
+      document.getElementById('lesson-complete').classList.remove('visible');
+
+      // Vainko intro message
+      appendMsg('assistant', 'I\'m watching your progress on ' + lesson.title + '. Work through the steps — I\'ll jump in if you need me.');
+
+      renderLesson();
+    }
+
+    function renderLesson() {
+      const lesson = LESSONS[activeLesson];
+      if (!lesson) return;
+
+      const done = completedSteps[activeLesson] || new Set();
+      const total = lesson.steps.length;
+      const doneCount = done.size;
+
+      // Check if lesson complete
+      if (doneCount === total) {
+        document.getElementById('phase-info').classList.remove('active');
+        document.getElementById('phase-mcq').classList.remove('active');
+        document.getElementById('phase-terminal').classList.remove('active');
+        document.getElementById('lesson-complete').classList.add('visible');
+        return;
+      }
+
+      // Update header
+      document.getElementById('main-lesson-title').textContent = lesson.title;
+      document.getElementById('main-progress-fill').style.width = ((doneCount / total) * 100) + '%';
+      document.getElementById('main-progress-label').textContent = doneCount + ' / ' + total + ' steps';
+
+      // Render step nav
+      renderStepNav();
+
+      // Render current step phase
+      renderCurrentPhase();
+    }
+
+    function renderStepNav() {
+      const lesson = LESSONS[activeLesson];
+      const navEl = document.getElementById('step-nav');
+      const done = completedSteps[activeLesson] || new Set();
+
+      navEl.innerHTML = '';
+      lesson.steps.forEach((step, i) => {
+        const isCompleted = done.has(i);
+        const isActive = i === activeStepIndex;
+        const isLocked = i > 0 && !done.has(i - 1) && !isCompleted;
+
+        const item = document.createElement('div');
+        item.className = 'step-nav-item' + 
+          (isCompleted ? ' completed' : '') + 
+          (isActive ? ' active' : '') +
+          (isLocked ? ' locked' : '');
+        
+        if (!isLocked) {
+          item.onclick = () => goToStep(i);
+        }
+
+        item.innerHTML = 
+          '<div class="step-nav-check"></div>' +
+          '<span>Step ' + (i + 1) + '</span>';
+        
+        navEl.appendChild(item);
+      });
+    }
+
+    function goToStep(index) {
+      const done = completedSteps[activeLesson] || new Set();
+      if (done.has(index)) {
+        // Already completed, can revisit
+        activeStepIndex = index;
+        currentPhase = 3; // Show terminal as completed state
+      } else if (index === 0 || done.has(index - 1)) {
+        // Unlocked step
+        activeStepIndex = index;
+        currentPhase = stepPhases[activeLesson]?.[index] || 1;
+      }
+      renderLesson();
+    }
+
+    function renderCurrentPhase() {
+      const lesson = LESSONS[activeLesson];
+      const step = lesson.steps[activeStepIndex];
+      const done = completedSteps[activeLesson] || new Set();
+
+      // Hide all phases
+      document.getElementById('phase-info').classList.remove('active');
+      document.getElementById('phase-mcq').classList.remove('active');
+      document.getElementById('phase-terminal').classList.remove('active');
+      document.getElementById('lesson-complete').classList.remove('visible');
+
+      if (done.has(activeStepIndex)) {
+        // Show completed state
+        renderTerminalPhase(step, true);
+        return;
+      }
+
+      if (currentPhase === 1) {
+        renderInfoPhase(step);
+      } else if (currentPhase === 2) {
+        renderMcqPhase(step);
+      } else if (currentPhase === 3) {
+        renderTerminalPhase(step, false);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  PHASE 1 — INFO CARD
+    // ═══════════════════════════════════════════════════════
+    function renderInfoPhase(step) {
+      const container = document.getElementById('phase-info');
+      container.innerHTML = `
+        <div class="info-card">
+          <div class="info-card-title">Learn: ${step.title}</div>
+          <div class="info-card-content">${step.info}</div>
+          <button class="info-card-btn" onclick="completeInfoPhase()">I understand, continue</button>
+        </div>
+      `;
+      container.classList.add('active');
+    }
+
+    function completeInfoPhase() {
+      currentPhase = 2;
+      if (!stepPhases[activeLesson]) stepPhases[activeLesson] = {};
+      stepPhases[activeLesson][activeStepIndex] = 2;
+      renderCurrentPhase();
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  PHASE 2 — MCQ
+    // ═══════════════════════════════════════════════════════
+    function renderMcqPhase(step) {
+      const container = document.getElementById('phase-mcq');
+      const optionsHtml = step.mcqOptions.map((opt, i) => 
+        `<button class="mcq-option" onclick="checkMcqAnswer(this, '${opt.replace(/'/g, "\\'")}', '${step.mcqAnswer.replace(/'/g, "\\'")}')">${opt}</button>`
+      ).join('');
+
+      container.innerHTML = `
+        <div class="mcq-card">
+          <div class="mcq-title">Quick Check</div>
+          <div class="mcq-question">${step.mcqQuestion}</div>
+          <div class="mcq-options">${optionsHtml}</div>
+          <div class="mcq-feedback" id="mcq-feedback"></div>
+          <button class="mcq-continue-btn" id="mcq-continue" onclick="completeMcqPhase()">Nice. Now try it.</button>
+        </div>
+      `;
+      container.classList.add('active');
+    }
+
+    function checkMcqAnswer(btn, selected, correct) {
+      const feedback = document.getElementById('mcq-feedback');
+      const continueBtn = document.getElementById('mcq-continue');
+      
+      if (selected === correct) {
+        btn.classList.add('correct');
+        feedback.className = 'mcq-feedback correct';
+        feedback.textContent = 'Correct!';
+        continueBtn.classList.add('visible');
+        // Disable all options
+        document.querySelectorAll('.mcq-option').forEach(o => o.disabled = true);
+      } else {
+        btn.classList.add('wrong');
+        feedback.className = 'mcq-feedback wrong';
+        feedback.textContent = 'Not quite. Try again.';
+        // Send to Vainko
+        const lesson = LESSONS[activeLesson];
+        const step = lesson.steps[activeStepIndex];
+        sendToVainkoSilent(`User got this MCQ wrong: "${step.mcqQuestion}". They chose "${selected}". Briefly explain why that's incorrect without giving away the answer.`);
+        
+        // Reset after delay
+        setTimeout(() => {
+          btn.classList.remove('wrong');
+          if (!document.querySelector('.mcq-option.correct')) {
+            feedback.className = 'mcq-feedback';
+          }
+        }, 1500);
+      }
+    }
+
+    function completeMcqPhase() {
+      currentPhase = 3;
+      if (!stepPhases[activeLesson]) stepPhases[activeLesson] = {};
+      stepPhases[activeLesson][activeStepIndex] = 3;
+      renderCurrentPhase();
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  PHASE 3 — TERMINAL
+    // ═══════════════════════════════════════════════════════
+    function renderTerminalPhase(step, isCompleted) {
+      const container = document.getElementById('phase-terminal');
+      
+      const completedOutput = isCompleted && step.terminalOutput ? 
+        `<div class="terminal-success-output">${step.terminalOutput}</div>` : '';
+      
+      const promptClass = isCompleted ? 'terminal-prompt success' : 'terminal-prompt';
+      
+      container.innerHTML = `
+        <div class="terminal-card">
+          <div class="terminal-header">
+            <div class="terminal-header-title">Try It</div>
+          </div>
+          <div class="terminal-instruction">${step.terminalPrompt}</div>
+          <div class="fake-terminal">
+            <div class="terminal-titlebar">
+              <div class="terminal-dot red"></div>
+              <div class="terminal-dot yellow"></div>
+              <div class="terminal-dot green"></div>
+            </div>
+            <div class="terminal-body">
+              ${completedOutput}
+              <div class="terminal-line">
+                <span class="${promptClass}" id="terminal-prompt">root@sheller:~$</span>
+                <input type="text" class="terminal-input" id="terminal-input" 
+                  autocomplete="off" spellcheck="false"
+                  placeholder="${isCompleted ? step.terminalExpected[0] : 'Type command here...'}"
+                  onkeydown="if(event.key==='Enter')checkTerminalCommand()"
+                  ${isCompleted ? 'disabled' : ''} />
+              </div>
+              <div class="terminal-error" id="terminal-error">Command not correct. Try again.</div>
+            </div>
+          </div>
+          <div class="terminal-actions">
+            ${!isCompleted ? '<button class="terminal-skip-btn" onclick="skipTerminal()">Skip with explanation</button>' : ''}
+            <button class="terminal-complete-btn${isCompleted ? ' visible' : ''}" id="terminal-complete" onclick="completeStep()">
+              ${isCompleted ? 'Completed ✓' : 'Continue to next step'}
+            </button>
+          </div>
+        </div>
+      `;
+      container.classList.add('active');
+
+      if (!isCompleted) {
+        setTimeout(() => document.getElementById('terminal-input')?.focus(), 100);
+      }
+    }
+
+    function checkTerminalCommand() {
+      const input = document.getElementById('terminal-input');
+      const command = input.value.trim().toLowerCase();
+      const lesson = LESSONS[activeLesson];
+      const step = lesson.steps[activeStepIndex];
+      const prompt = document.getElementById('terminal-prompt');
+      const error = document.getElementById('terminal-error');
+      const completeBtn = document.getElementById('terminal-complete');
+
+      // Check if command matches any expected variation
+      const isCorrect = step.terminalExpected.some(exp => 
+        command === exp.toLowerCase() || command.startsWith(exp.toLowerCase())
+      );
+
+      if (isCorrect) {
+        prompt.classList.remove('error');
+        prompt.classList.add('success');
+        error.classList.remove('visible');
+        input.disabled = true;
+        completeBtn.classList.add('visible');
+
+        // Show output if any
+        if (step.terminalOutput) {
+          const body = document.querySelector('.terminal-body');
+          const outputDiv = document.createElement('div');
+          outputDiv.className = 'terminal-success-output';
+          outputDiv.textContent = step.terminalOutput;
+          body.insertBefore(outputDiv, body.querySelector('.terminal-line'));
+        }
+      } else {
+        prompt.classList.add('error');
+        error.classList.add('visible');
+        
+        // Give direct feedback: explain both commands briefly
+        const correctCmd = step.terminalExpected[0];
+        sendToVainkoSilent(`Wrong command. User typed "${command}", correct is [CMD: ${correctCmd}]. Explain what both do in 2 sentences max.`);
+        
+        setTimeout(() => {
+          prompt.classList.remove('error');
+          error.classList.remove('visible');
+          input.value = '';
+          input.focus();
+        }, 3000);
+      }
+    }
+
+    function skipTerminal() {
+      const lesson = LESSONS[activeLesson];
+      const step = lesson.steps[activeStepIndex];
+      
+      // Send explanation request to Vainko
+      sendToVainkoSilent(`User skipped the terminal challenge for step ${activeStepIndex + 1}: "${step.title}". Explain what the correct command "${step.terminalExpected[0]}" does and why it's the answer.`);
+      
+      completeStep();
+    }
+
+    function completeStep() {
+      const lesson = LESSONS[activeLesson];
+      
+      // Mark step complete
+      if (!completedSteps[activeLesson]) completedSteps[activeLesson] = new Set();
+      completedSteps[activeLesson].add(activeStepIndex);
+
+      // Send insight to Vainko
+      const step = lesson.steps[activeStepIndex];
+      sendToVainkoSilent(`User just completed step ${activeStepIndex + 1}: "${step.title}" in the ${lesson.title} lesson. Share one brief insight about what they just learned.`);
+
+      // Move to next step or complete lesson
+      const nextIndex = activeStepIndex + 1;
+      if (nextIndex < lesson.steps.length) {
+        activeStepIndex = nextIndex;
+        currentPhase = 1;
+        if (!stepPhases[activeLesson]) stepPhases[activeLesson] = {};
+        stepPhases[activeLesson][nextIndex] = 1;
+      }
+
+      renderLesson();
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  CHAT — messages
+    // ═══════════════════════════════════════════════════════
     function appendMsg(role, content) {
       const container = document.getElementById('vainko-messages');
       const div = document.createElement('div');
-      div.className = 'vainko-msg ' + role;
-      const processed = content.replace(/\[CMD:(.*?)\]/g, (_, cmd) => {
-        const escaped = cmd.replace(/'/g, "\\'");
-        return `<span class="cmd-chip" onclick="navigator.clipboard.writeText('${escaped}')" title="Click to copy">${cmd}</span>`;
+      div.className = 'msg ' + role;
+      const processed = content.replace(/\[CMD:\s*(.*?)\]/g, function(_, cmd) {
+        const trimmed = cmd.trim();
+        const escaped = trimmed.replace(/'/g, "\\'");
+        return '<span class="cmd-chip" onclick="navigator.clipboard.writeText(\'' + escaped + '\')" title="Click to copy">' + trimmed + '</span>';
       });
       div.innerHTML = processed;
       container.appendChild(div);
       container.scrollTop = container.scrollHeight;
     }
 
+    function showTyping() {
+      const container = document.getElementById('vainko-messages');
+      const div = document.createElement('div');
+      div.className = 'typing-indicator';
+      div.id = 'vainko-typing';
+      div.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function removeTyping() {
+      const t = document.getElementById('vainko-typing');
+      if (t) t.remove();
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  CHAT — API calls (preserved logic)
+    // ═══════════════════════════════════════════════════════
     async function sendMessage() {
       const input = document.getElementById('vainko-input');
       const message = input.value.trim();
       if (!message) return;
       input.value = '';
-      appendMsg('user', message);
+      sendToChat(message);
+    }
 
-      const typingDiv = document.createElement('div');
-      typingDiv.className = 'vainko-msg assistant vainko-typing';
-      typingDiv.textContent = 'Vainko is thinking...';
-      typingDiv.id = 'vainko-typing';
-      document.getElementById('vainko-messages').appendChild(typingDiv);
-      document.getElementById('vainko-messages').scrollTop = document.getElementById('vainko-messages').scrollHeight;
+    async function sendToChat(message) {
+      appendMsg('user', message);
+      showTyping();
 
       try {
         const res = await fetch('/api/vainko', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message, os: 'linux', skill: skillLevel }),
+          body: JSON.stringify({ message: message, os: 'linux', skill: skillLevel }),
         });
         const data = await res.json();
-        const t = document.getElementById('vainko-typing');
-        if (t) t.remove();
+        removeTyping();
         appendMsg('assistant', data.reply || data.error || 'No response.');
       } catch (err) {
-        const t = document.getElementById('vainko-typing');
-        if (t) t.remove();
+        removeTyping();
         appendMsg('assistant', 'Error contacting Vainko.');
       }
     }
 
-    function startLesson(id, el) {
-      document.querySelectorAll('.vainko-lesson-item').forEach(i => i.classList.remove('active'));
-      if (el) el.classList.add('active');
-      document.getElementById('vainko-messages').innerHTML = '';
-      const prompt = lessonPrompts[id] || 'Tell me about this topic.';
-      appendMsg('user', prompt);
-
-      // Send to API
-      (async () => {
-        const typingDiv = document.createElement('div');
-        typingDiv.className = 'vainko-msg assistant vainko-typing';
-        typingDiv.textContent = 'Vainko is thinking...';
-        typingDiv.id = 'vainko-typing';
-        document.getElementById('vainko-messages').appendChild(typingDiv);
-
-        try {
-          const res = await fetch('/api/vainko', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: prompt, os: 'linux', skill: skillLevel }),
-          });
-          const data = await res.json();
-          const t = document.getElementById('vainko-typing');
-          if (t) t.remove();
-          appendMsg('assistant', data.reply || data.error || 'No response.');
-        } catch (err) {
-          const t = document.getElementById('vainko-typing');
-          if (t) t.remove();
-          appendMsg('assistant', 'Error contacting Vainko.');
-        }
-      })();
+    // Silent send (for automatic context messages)
+    async function sendToVainkoSilent(message) {
+      showTyping();
+      try {
+        const res = await fetch('/api/vainko', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: message, os: 'linux', skill: skillLevel }),
+        });
+        const data = await res.json();
+        removeTyping();
+        appendMsg('assistant', data.reply || data.error || 'No response.');
+      } catch (err) {
+        removeTyping();
+        appendMsg('assistant', 'Error contacting Vainko.');
+      }
     }
   </script>
 </body>

@@ -458,7 +458,7 @@ function selectSkillLevel(level) {
   document.getElementById('skill-survey-overlay').style.display = 'none';
 }
 
-// ─── Vainko Chat Overlay ──────────────────────────────────────────────────────
+// ─── Vainko Chat Overlay — 3-Phase Learning System ───────────────────────────
 
 function selectVainko() {
   skillLevel = localStorage.getItem('sheller_skill_level') || 'beginner';
@@ -476,59 +476,523 @@ function closeVainkoChat() {
 function loadVainkoChat() {
   const overlay = document.getElementById('vainko-chat-overlay');
   const skill = skillLevel || 'beginner';
-  const skillLabel = skill === 'experienced' ? 'Experienced' : skill === 'intermediate' ? 'Some Experience' : 'Beginner';
+  const skillLabel = skill === 'experienced' ? 'Experienced' : skill === 'intermediate' ? 'Intermediate' : 'Beginner';
 
-  const lessons = [
-    { id: 'navigation', label: '📂 Navigation' },
-    { id: 'permissions', label: '🔒 Permissions' },
-    { id: 'networking', label: '🌐 Networking' },
-    { id: 'kali-tools', label: '🐉 Kali Tools' },
-    { id: 'scripting', label: '📝 Scripting' },
-    { id: 'packages', label: '📦 Package Management' },
-  ];
+  // Full lesson data with hardcoded step content
+  const LESSONS = {
+    navigation: {
+      title: 'Navigation', desc: 'Move around the filesystem with confidence',
+      difficulty: 'beginner', time: '~8 min', available: true,
+      steps: [
+        {
+          title: 'Understanding the filesystem structure',
+          info: 'Linux organizes everything in a single tree starting at <span class="v-highlight">/</span>. Every file and directory lives under root <span class="v-highlight">/</span>. Common directories: <span class="v-highlight">/home</span> (user files), <span class="v-highlight">/etc</span> (config), <span class="v-highlight">/var</span> (logs), <span class="v-highlight">/tmp</span> (temporary).',
+          mcqQuestion: 'What directory contains system configuration files?',
+          mcqOptions: ['/config', '/etc', '/system', '/conf'],
+          mcqAnswer: '/etc',
+          terminalPrompt: 'Type the command to print your current directory',
+          terminalExpected: ['pwd'],
+          terminalOutput: '/home/user'
+        },
+        {
+          title: 'Moving between directories with cd',
+          info: '<span class="v-highlight">cd</span> (change directory) moves you between directories. <span class="v-highlight">cd /etc</span> goes to /etc. <span class="v-highlight">cd ..</span> goes up one level. <span class="v-highlight">cd ~</span> or just <span class="v-highlight">cd</span> goes home. <span class="v-highlight">cd -</span> goes to previous directory.',
+          mcqQuestion: 'How do you go up one directory level?',
+          mcqOptions: ['cd up', 'cd ..', 'cd /', 'cd back'],
+          mcqAnswer: 'cd ..',
+          terminalPrompt: 'Navigate to the /etc directory',
+          terminalExpected: ['cd /etc', 'cd/etc'],
+          terminalOutput: ''
+        },
+        {
+          title: 'Listing contents with ls and flags',
+          info: '<span class="v-highlight">ls</span> lists directory contents. Useful flags: <span class="v-highlight">-l</span> (long format with permissions), <span class="v-highlight">-a</span> (show hidden files starting with .), <span class="v-highlight">-h</span> (human readable sizes), <span class="v-highlight">-la</span> combines them.',
+          mcqQuestion: 'Which flag shows hidden files?',
+          mcqOptions: ['-h', '-l', '-a', '-r'],
+          mcqAnswer: '-a',
+          terminalPrompt: 'List all files including hidden ones in long format',
+          terminalExpected: ['ls -la', 'ls -al', 'ls -l -a', 'ls -a -l'],
+          terminalOutput: 'total 32\ndrwxr-xr-x  5 user user 4096 Mar  3 10:00 .\ndrwxr-xr-x  3 root root 4096 Mar  1 09:00 ..\n-rw-------  1 user user  220 Mar  1 09:00 .bash_history\n-rw-r--r--  1 user user  807 Mar  1 09:00 .bashrc'
+        },
+        {
+          title: 'Understanding absolute vs relative paths',
+          info: '<span class="v-highlight">Absolute paths</span> start from / and always work regardless of where you are. <span class="v-highlight">Relative paths</span> are relative to your current location. <span class="v-highlight">/etc/passwd</span> is absolute. <span class="v-highlight">../config</span> is relative.',
+          mcqQuestion: 'Which is an absolute path?',
+          mcqOptions: ['../etc', 'etc/passwd', '/etc/passwd', './passwd'],
+          mcqAnswer: '/etc/passwd',
+          terminalPrompt: 'Navigate to /var/log using an absolute path',
+          terminalExpected: ['cd /var/log'],
+          terminalOutput: ''
+        },
+        {
+          title: 'Using pwd and tab completion',
+          info: '<span class="v-highlight">pwd</span> prints your current working directory. <span class="v-highlight">Tab completion</span> auto-completes file and directory names — type part of a name and press Tab. Double Tab shows all options.',
+          mcqQuestion: 'What does pwd stand for?',
+          mcqOptions: ['Print Working Directory', 'Path Working Dir', 'Present Working Directory', 'Print Where Directory'],
+          mcqAnswer: 'Print Working Directory',
+          terminalPrompt: 'Print your current working directory',
+          terminalExpected: ['pwd'],
+          terminalOutput: '/var/log'
+        }
+      ]
+    },
+    permissions: {
+      title: 'Permissions', desc: 'Control who can read, write, and execute files',
+      difficulty: 'beginner', time: '~10 min', available: true,
+      steps: [
+        {
+          title: 'Understanding rwx notation',
+          info: 'Every file has permissions for 3 groups: <span class="v-highlight">owner</span>, <span class="v-highlight">group</span>, <span class="v-highlight">others</span>. Each has <span class="v-highlight">read(r=4)</span>, <span class="v-highlight">write(w=2)</span>, <span class="v-highlight">execute(x=1)</span>. -rwxr-xr-- means owner can do everything, group can read+execute, others can only read.',
+          mcqQuestion: "What does 'w' represent in permissions?",
+          mcqOptions: ['write', 'wide', 'work', 'watch'],
+          mcqAnswer: 'write',
+          terminalPrompt: 'List files with their permissions',
+          terminalExpected: ['ls -l', 'ls -la', 'ls -al'],
+          terminalOutput: 'total 8\n-rw-r--r-- 1 user user 1234 Mar  3 10:00 file.txt\ndrwxr-xr-x 2 user user 4096 Mar  3 09:00 scripts'
+        },
+        {
+          title: 'Reading permission strings',
+          info: 'Permission string <span class="v-highlight">-rwxr-xr--</span> has 10 characters. First is file type (<span class="v-highlight">-</span> file, <span class="v-highlight">d</span> directory). Next 3 are owner permissions. Next 3 are group. Last 3 are others.',
+          mcqQuestion: "What does 'd' at the start of a permission string mean?",
+          mcqOptions: ['deleted', 'directory', 'daemon', 'default'],
+          mcqAnswer: 'directory',
+          terminalPrompt: 'Show permissions of files in /etc',
+          terminalExpected: ['ls -l /etc', 'ls -la /etc', 'ls -al /etc'],
+          terminalOutput: 'total 1024\ndrwxr-xr-x  2 root root  4096 Mar  1 10:00 apt\n-rw-r--r--  1 root root  2319 Mar  1 10:00 bash.bashrc'
+        },
+        {
+          title: 'Using chmod with numbers',
+          info: '<span class="v-highlight">chmod</span> with numbers changes permissions. Each permission group is a sum: <span class="v-highlight">r=4, w=2, x=1</span>. <span class="v-highlight">chmod 755</span> means owner=7(rwx), group=5(r-x), others=5(r-x). <span class="v-highlight">chmod 644</span> is common for files.',
+          mcqQuestion: 'What numeric value represents read and write only?',
+          mcqOptions: ['5', '6', '7', '3'],
+          mcqAnswer: '6',
+          terminalPrompt: 'Give owner full permissions, group and others read only',
+          terminalExpected: ['chmod 644', 'chmod 644 file', 'chmod 644 file.txt'],
+          terminalOutput: ''
+        },
+        {
+          title: 'Using chmod with symbols',
+          info: 'chmod with symbols: <span class="v-highlight">u</span>=user/owner, <span class="v-highlight">g</span>=group, <span class="v-highlight">o</span>=others, <span class="v-highlight">a</span>=all. <span class="v-highlight">+</span> adds, <span class="v-highlight">-</span> removes, <span class="v-highlight">=</span> sets exactly. <span class="v-highlight">chmod u+x</span> adds execute for owner.',
+          mcqQuestion: 'How do you add execute permission for the owner?',
+          mcqOptions: ['chmod +x', 'chmod u+x', 'chmod o+x', 'chmod a-x'],
+          mcqAnswer: 'chmod u+x',
+          terminalPrompt: 'Remove write permission from others on a file',
+          terminalExpected: ['chmod o-w', 'chmod o-w file', 'chmod o-w file.txt'],
+          terminalOutput: ''
+        },
+        {
+          title: 'Changing ownership with chown',
+          info: '<span class="v-highlight">chown</span> changes file ownership. <span class="v-highlight">chown user:group file</span> changes both owner and group. <span class="v-highlight">chown john file</span> changes owner to john. Requires sudo for files you don\'t own.',
+          mcqQuestion: 'What command changes file ownership?',
+          mcqOptions: ['chmod', 'chown', 'chgrp only', 'usermod'],
+          mcqAnswer: 'chown',
+          terminalPrompt: 'Change owner of a file to root',
+          terminalExpected: ['chown root', 'chown root file', 'chown root file.txt', 'sudo chown root'],
+          terminalOutput: ''
+        }
+      ]
+    },
+    networking: {
+      title: 'Networking', desc: 'Inspect and troubleshoot network connections',
+      difficulty: 'intermediate', time: '~12 min', available: false, steps: []
+    },
+    'kali-tools': {
+      title: 'Kali Tools', desc: 'Essential security tools in Kali Linux',
+      difficulty: 'intermediate', time: '~15 min', available: false, steps: []
+    },
+    scripting: {
+      title: 'Scripting', desc: 'Automate tasks with bash scripts',
+      difficulty: 'intermediate', time: '~12 min', available: false, steps: []
+    },
+    packages: {
+      title: 'Package Management', desc: 'Install, update, and remove software',
+      difficulty: 'beginner', time: '~8 min', available: false, steps: []
+    }
+  };
 
-  overlay.innerHTML = `
-    <div class="vainko-chat-sidebar">
-      <div class="vainko-chat-sidebar-header"><h3>Lessons</h3></div>
-      <div class="vainko-lesson-list">
-        ${lessons.map(l => `<div class="vainko-lesson-item" onclick="startVainkoLesson('${l.id}', this)">${l.label}</div>`).join('')}
-      </div>
-    </div>
-    <div class="vainko-chat-main">
-      <div class="vainko-chat-topbar">
-        <div class="vainko-chat-topbar-left">
-          <button class="vainko-back-btn" onclick="closeVainkoChat()">← Back</button>
-          <span class="vainko-chat-logo">🤖 Vainko</span>
-        </div>
-        <span class="skill-badge ${skill}">${skillLabel}</span>
-      </div>
-      <div class="vainko-chat-messages" id="vainko-messages"></div>
-      <div class="vainko-chat-inputbar">
-        <input type="text" id="vainko-input" placeholder="Ask Vainko anything..." onkeydown="if(event.key==='Enter')sendVainkoMessage()" />
-        <button onclick="sendVainkoMessage()">Send</button>
-      </div>
-    </div>
-  `;
+  // Store on window for access by helper functions
+  window._vainkoLessons = LESSONS;
+  window._vainkoActiveLesson = null;
+  window._vainkoActiveStep = 0;
+  window._vainkoCurrentPhase = 1; // 1=info, 2=mcq, 3=terminal
+  window._vainkoCompleted = {};
+  window._vainkoStepPhases = {};
 
-  let greeting = '';
-  if (skill === 'beginner') {
-    greeting = "Hey! 👋 Let's start from zero — I'll walk you through everything step by step. Pick a lesson from the sidebar or just ask me anything!";
-  } else if (skill === 'intermediate') {
-    greeting = "Welcome back! 👋 Let's level up what you already know. Pick a topic from the sidebar or ask me anything!";
-  } else {
-    greeting = "Hey! 👋 I'll keep it advanced — just ask me anything or pick a challenge from the sidebar.";
+  // Build lesson cards HTML
+  let lessonCardsHtml = '';
+  for (const [id, lesson] of Object.entries(LESSONS)) {
+    const diffLabel = lesson.difficulty === 'beginner' ? 'Beginner' : 'Intermediate';
+    const lockedClass = lesson.available ? '' : ' locked';
+    const onclick = lesson.available ? 'onclick="selectVainkoLesson(\'' + id + '\')"' : '';
+    lessonCardsHtml += '<div class="v-lesson-card' + lockedClass + '" data-lesson-id="' + id + '" ' + onclick + '>' +
+      '<div class="v-lesson-card-title">' + lesson.title + '</div>' +
+      '<div class="v-lesson-card-desc">' + lesson.desc + '</div>' +
+      '<div class="v-lesson-card-meta">' +
+        '<span class="v-diff-pill ' + lesson.difficulty + '">' + diffLabel + '</span>' +
+        '<span class="v-lesson-card-time">' + lesson.time + '</span>' +
+      '</div></div>';
   }
-  appendVainkoMessage('assistant', greeting);
+
+  overlay.innerHTML = '<aside class="v-sidebar">' +
+      '<div class="v-sidebar-header">' +
+        '<div class="v-sidebar-brand">VAINKO</div>' +
+        '<div class="v-sidebar-skill"><span class="v-skill-pill ' + skill + '">' + skillLabel + '</span></div>' +
+      '</div>' +
+      '<div class="v-sidebar-section">Lessons</div>' +
+      '<div class="v-lesson-list">' + lessonCardsHtml + '</div>' +
+    '</aside>' +
+    '<main class="v-main-area">' +
+      '<div class="v-main-header" id="v-main-header" style="display:none;">' +
+        '<div class="v-main-lesson-title" id="v-main-lesson-title"></div>' +
+        '<div class="v-main-progress"><div class="v-main-progress-fill" id="v-main-progress-fill"></div></div>' +
+        '<div class="v-main-progress-label" id="v-main-progress-label">0 / 5 steps</div>' +
+      '</div>' +
+      '<div class="v-step-nav" id="v-step-nav" style="display:none;"></div>' +
+      '<div class="v-main-content" id="v-main-content">' +
+        '<div class="v-welcome-state" id="v-welcome-state">' +
+          '<h2>Welcome to Vainko</h2>' +
+          '<p>Select a lesson from the sidebar to start learning. Each lesson has explanations, quizzes, and hands-on terminal challenges.</p>' +
+        '</div>' +
+        '<div class="v-phase-container" id="v-phase-info"></div>' +
+        '<div class="v-phase-container" id="v-phase-mcq"></div>' +
+        '<div class="v-phase-container" id="v-phase-terminal"></div>' +
+        '<div class="v-lesson-complete" id="v-lesson-complete">' +
+          '<div class="v-lesson-complete-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline></svg></div>' +
+          '<div class="v-lesson-complete-text">Lesson Complete!</div>' +
+          '<div class="v-lesson-complete-sub">Great work! Pick another lesson from the sidebar to keep learning.</div>' +
+        '</div>' +
+      '</div>' +
+    '</main>' +
+    '<aside class="v-chat-column">' +
+      '<div class="v-chat-topbar">' +
+        '<div class="v-chat-topbar-left">' +
+          '<span class="v-chat-wordmark">Vainko</span>' +
+          '<span class="v-chat-subtitle">watching your progress</span>' +
+        '</div>' +
+        '<button class="v-back-link" onclick="closeVainkoChat()">✕</button>' +
+      '</div>' +
+      '<div class="v-chat-messages" id="vainko-messages"></div>' +
+      '<div class="v-chat-inputbar">' +
+        '<input type="text" id="vainko-input" placeholder="Ask Vainko..." onkeydown="if(event.key===\'Enter\')sendVainkoMessage()" />' +
+        '<button onclick="sendVainkoMessage()">Send</button>' +
+      '</div>' +
+    '</aside>';
+
+  appendVainkoMessage('assistant', 'Select a lesson from the sidebar to begin. I\'ll guide you through each step and help when you need it.');
+}
+
+function selectVainkoLesson(id) {
+  const LESSONS = window._vainkoLessons;
+  if (!LESSONS || !LESSONS[id] || !LESSONS[id].available) return;
+  
+  window._vainkoActiveLesson = id;
+  window._vainkoActiveStep = 0;
+  window._vainkoCurrentPhase = 1;
+  
+  if (!window._vainkoCompleted[id]) window._vainkoCompleted[id] = new Set();
+  if (!window._vainkoStepPhases[id]) window._vainkoStepPhases[id] = {};
+
+  document.querySelectorAll('.v-lesson-card').forEach(c => c.classList.remove('active'));
+  const card = document.querySelector('.v-lesson-card[data-lesson-id="' + id + '"]');
+  if (card) card.classList.add('active');
+
+  document.getElementById('v-main-header').style.display = 'block';
+  document.getElementById('v-step-nav').style.display = 'flex';
+  document.getElementById('v-welcome-state').style.display = 'none';
+  document.getElementById('v-lesson-complete').classList.remove('visible');
+
+  const lesson = LESSONS[id];
+  appendVainkoMessage('assistant', "I'm watching your progress on " + lesson.title + ". Work through the steps — I'll jump in if you need me.");
+
+  renderVainkoLesson();
+}
+
+function renderVainkoLesson() {
+  const LESSONS = window._vainkoLessons;
+  const id = window._vainkoActiveLesson;
+  if (!LESSONS || !id) return;
+
+  const lesson = LESSONS[id];
+  const done = window._vainkoCompleted[id] || new Set();
+  const total = lesson.steps.length;
+  const doneCount = done.size;
+
+  // Check if lesson complete
+  if (doneCount === total) {
+    document.getElementById('v-phase-info').classList.remove('active');
+    document.getElementById('v-phase-mcq').classList.remove('active');
+    document.getElementById('v-phase-terminal').classList.remove('active');
+    document.getElementById('v-lesson-complete').classList.add('visible');
+    return;
+  }
+
+  // Update header
+  document.getElementById('v-main-lesson-title').textContent = lesson.title;
+  document.getElementById('v-main-progress-fill').style.width = ((doneCount / total) * 100) + '%';
+  document.getElementById('v-main-progress-label').textContent = doneCount + ' / ' + total + ' steps';
+
+  renderVainkoStepNav();
+  renderVainkoCurrentPhase();
+}
+
+function renderVainkoStepNav() {
+  const LESSONS = window._vainkoLessons;
+  const id = window._vainkoActiveLesson;
+  const lesson = LESSONS[id];
+  const navEl = document.getElementById('v-step-nav');
+  const done = window._vainkoCompleted[id] || new Set();
+
+  navEl.innerHTML = '';
+  lesson.steps.forEach((step, i) => {
+    const isCompleted = done.has(i);
+    const isActive = i === window._vainkoActiveStep;
+    const isLocked = i > 0 && !done.has(i - 1) && !isCompleted;
+
+    const item = document.createElement('div');
+    item.className = 'v-step-nav-item' + 
+      (isCompleted ? ' completed' : '') + 
+      (isActive ? ' active' : '') +
+      (isLocked ? ' locked' : '');
+    
+    if (!isLocked) {
+      item.onclick = () => goToVainkoStep(i);
+    }
+
+    item.innerHTML = '<div class="v-step-nav-check"></div><span>Step ' + (i + 1) + '</span>';
+    navEl.appendChild(item);
+  });
+}
+
+function goToVainkoStep(index) {
+  const done = window._vainkoCompleted[window._vainkoActiveLesson] || new Set();
+  if (done.has(index)) {
+    window._vainkoActiveStep = index;
+    window._vainkoCurrentPhase = 3;
+  } else if (index === 0 || done.has(index - 1)) {
+    window._vainkoActiveStep = index;
+    window._vainkoCurrentPhase = window._vainkoStepPhases[window._vainkoActiveLesson]?.[index] || 1;
+  }
+  renderVainkoLesson();
+}
+
+function renderVainkoCurrentPhase() {
+  const LESSONS = window._vainkoLessons;
+  const id = window._vainkoActiveLesson;
+  const lesson = LESSONS[id];
+  const step = lesson.steps[window._vainkoActiveStep];
+  const done = window._vainkoCompleted[id] || new Set();
+
+  document.getElementById('v-phase-info').classList.remove('active');
+  document.getElementById('v-phase-mcq').classList.remove('active');
+  document.getElementById('v-phase-terminal').classList.remove('active');
+  document.getElementById('v-lesson-complete').classList.remove('visible');
+
+  if (done.has(window._vainkoActiveStep)) {
+    renderVainkoTerminalPhase(step, true);
+    return;
+  }
+
+  if (window._vainkoCurrentPhase === 1) {
+    renderVainkoInfoPhase(step);
+  } else if (window._vainkoCurrentPhase === 2) {
+    renderVainkoMcqPhase(step);
+  } else if (window._vainkoCurrentPhase === 3) {
+    renderVainkoTerminalPhase(step, false);
+  }
+}
+
+function renderVainkoInfoPhase(step) {
+  const container = document.getElementById('v-phase-info');
+  container.innerHTML = '<div class="v-info-card">' +
+    '<div class="v-info-card-title"><span class="v-phase-num">1</span>Learn: ' + step.title + '</div>' +
+    '<div class="v-info-card-content">' + step.info + '</div>' +
+    '<button class="v-info-card-btn" onclick="completeVainkoInfoPhase()">I understand, continue</button>' +
+  '</div>';
+  container.classList.add('active');
+}
+
+function completeVainkoInfoPhase() {
+  window._vainkoCurrentPhase = 2;
+  const id = window._vainkoActiveLesson;
+  if (!window._vainkoStepPhases[id]) window._vainkoStepPhases[id] = {};
+  window._vainkoStepPhases[id][window._vainkoActiveStep] = 2;
+  renderVainkoCurrentPhase();
+}
+
+function renderVainkoMcqPhase(step) {
+  const container = document.getElementById('v-phase-mcq');
+  let optionsHtml = '';
+  step.mcqOptions.forEach(opt => {
+    const escaped = opt.replace(/'/g, "\\'");
+    const answerEscaped = step.mcqAnswer.replace(/'/g, "\\'");
+    optionsHtml += '<button class="v-mcq-option" onclick="checkVainkoMcqAnswer(this, \'' + escaped + '\', \'' + answerEscaped + '\')">' + opt + '</button>';
+  });
+
+  container.innerHTML = '<div class="v-mcq-card">' +
+    '<div class="v-mcq-title"><span class="v-phase-num">2</span>Quick Check</div>' +
+    '<div class="v-mcq-question">' + step.mcqQuestion + '</div>' +
+    '<div class="v-mcq-options">' + optionsHtml + '</div>' +
+    '<div class="v-mcq-feedback" id="v-mcq-feedback"></div>' +
+    '<button class="v-mcq-continue-btn" id="v-mcq-continue" onclick="completeVainkoMcqPhase()">Nice. Now try it.</button>' +
+  '</div>';
+  container.classList.add('active');
+}
+
+function checkVainkoMcqAnswer(btn, selected, correct) {
+  const feedback = document.getElementById('v-mcq-feedback');
+  const continueBtn = document.getElementById('v-mcq-continue');
+  
+  if (selected === correct) {
+    btn.classList.add('correct');
+    feedback.className = 'v-mcq-feedback correct';
+    feedback.textContent = 'Correct!';
+    continueBtn.classList.add('visible');
+    document.querySelectorAll('.v-mcq-option').forEach(o => o.disabled = true);
+  } else {
+    btn.classList.add('wrong');
+    feedback.className = 'v-mcq-feedback wrong';
+    feedback.textContent = 'Not quite. Try again.';
+    
+    const LESSONS = window._vainkoLessons;
+    const lesson = LESSONS[window._vainkoActiveLesson];
+    const step = lesson.steps[window._vainkoActiveStep];
+    sendVainkoToApiSilent('User got this MCQ wrong: "' + step.mcqQuestion + '". They chose "' + selected + '". Briefly explain why that\'s incorrect without giving away the answer.');
+    
+    setTimeout(() => {
+      btn.classList.remove('wrong');
+      if (!document.querySelector('.v-mcq-option.correct')) {
+        feedback.className = 'v-mcq-feedback';
+      }
+    }, 1500);
+  }
+}
+
+function completeVainkoMcqPhase() {
+  window._vainkoCurrentPhase = 3;
+  const id = window._vainkoActiveLesson;
+  if (!window._vainkoStepPhases[id]) window._vainkoStepPhases[id] = {};
+  window._vainkoStepPhases[id][window._vainkoActiveStep] = 3;
+  renderVainkoCurrentPhase();
+}
+
+function renderVainkoTerminalPhase(step, isCompleted) {
+  const container = document.getElementById('v-phase-terminal');
+  const completedOutput = isCompleted && step.terminalOutput ? '<div class="v-terminal-success-output">' + step.terminalOutput + '</div>' : '';
+  const promptClass = isCompleted ? 'v-terminal-prompt success' : 'v-terminal-prompt';
+  const skipBtn = !isCompleted ? '<button class="v-terminal-skip-btn" onclick="skipVainkoTerminal()">Skip with explanation</button>' : '';
+  const completeClass = isCompleted ? ' visible' : '';
+  const completeText = isCompleted ? 'Completed ✓' : 'Continue to next step';
+
+  container.innerHTML = '<div class="v-terminal-card">' +
+    '<div class="v-terminal-header"><div class="v-terminal-header-title"><span class="v-phase-num">3</span>Try It</div></div>' +
+    '<div class="v-terminal-instruction">' + step.terminalPrompt + '</div>' +
+    '<div class="v-fake-terminal">' +
+      '<div class="v-terminal-titlebar"><div class="v-terminal-dot red"></div><div class="v-terminal-dot yellow"></div><div class="v-terminal-dot green"></div></div>' +
+      '<div class="v-terminal-body">' +
+        completedOutput +
+        '<div class="v-terminal-line">' +
+          '<span class="' + promptClass + '" id="v-terminal-prompt">root@sheller:~$</span>' +
+          '<input type="text" class="v-terminal-input" id="v-terminal-input" autocomplete="off" spellcheck="false" placeholder="' + (isCompleted ? step.terminalExpected[0] : 'Type command here...') + '" onkeydown="if(event.key===\'Enter\')checkVainkoTerminalCommand()" ' + (isCompleted ? 'disabled' : '') + '/>' +
+        '</div>' +
+        '<div class="v-terminal-error" id="v-terminal-error">Command not correct. Try again.</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="v-terminal-actions">' +
+      skipBtn +
+      '<button class="v-terminal-complete-btn' + completeClass + '" id="v-terminal-complete" onclick="completeVainkoStep()">' + completeText + '</button>' +
+    '</div>' +
+  '</div>';
+  container.classList.add('active');
+
+  if (!isCompleted) {
+    setTimeout(() => document.getElementById('v-terminal-input')?.focus(), 100);
+  }
+}
+
+function checkVainkoTerminalCommand() {
+  const input = document.getElementById('v-terminal-input');
+  const command = input.value.trim().toLowerCase();
+  const LESSONS = window._vainkoLessons;
+  const lesson = LESSONS[window._vainkoActiveLesson];
+  const step = lesson.steps[window._vainkoActiveStep];
+  const prompt = document.getElementById('v-terminal-prompt');
+  const error = document.getElementById('v-terminal-error');
+  const completeBtn = document.getElementById('v-terminal-complete');
+
+  const isCorrect = step.terminalExpected.some(exp => command === exp.toLowerCase() || command.startsWith(exp.toLowerCase()));
+
+  if (isCorrect) {
+    prompt.classList.remove('error');
+    prompt.classList.add('success');
+    error.classList.remove('visible');
+    input.disabled = true;
+    completeBtn.classList.add('visible');
+
+    if (step.terminalOutput) {
+      const body = document.querySelector('.v-terminal-body');
+      const outputDiv = document.createElement('div');
+      outputDiv.className = 'v-terminal-success-output';
+      outputDiv.textContent = step.terminalOutput;
+      body.insertBefore(outputDiv, body.querySelector('.v-terminal-line'));
+    }
+  } else {
+    prompt.classList.add('error');
+    error.classList.add('visible');
+    
+    // Give direct feedback: explain both commands briefly
+    const correctCmd = step.terminalExpected[0];
+    sendVainkoToApiSilent('Wrong command. User typed "' + command + '", correct is [CMD: ' + correctCmd + ']. Explain what both do in 2 sentences max.');
+    
+    setTimeout(() => {
+      prompt.classList.remove('error');
+      error.classList.remove('visible');
+      input.value = '';
+      input.focus();
+    }, 3000);
+  }
+}
+
+function skipVainkoTerminal() {
+  const LESSONS = window._vainkoLessons;
+  const lesson = LESSONS[window._vainkoActiveLesson];
+  const step = lesson.steps[window._vainkoActiveStep];
+  
+  sendVainkoToApiSilent('User skipped the terminal challenge for step ' + (window._vainkoActiveStep + 1) + ': "' + step.title + '". Explain what the correct command "' + step.terminalExpected[0] + '" does and why it\'s the answer.');
+  
+  completeVainkoStep();
+}
+
+function completeVainkoStep() {
+  const LESSONS = window._vainkoLessons;
+  const id = window._vainkoActiveLesson;
+  const lesson = LESSONS[id];
+  
+  if (!window._vainkoCompleted[id]) window._vainkoCompleted[id] = new Set();
+  window._vainkoCompleted[id].add(window._vainkoActiveStep);
+
+  const step = lesson.steps[window._vainkoActiveStep];
+  sendVainkoToApiSilent('User just completed step ' + (window._vainkoActiveStep + 1) + ': "' + step.title + '" in the ' + lesson.title + ' lesson. Share one brief insight about what they just learned.');
+
+  const nextIndex = window._vainkoActiveStep + 1;
+  if (nextIndex < lesson.steps.length) {
+    window._vainkoActiveStep = nextIndex;
+    window._vainkoCurrentPhase = 1;
+    if (!window._vainkoStepPhases[id]) window._vainkoStepPhases[id] = {};
+    window._vainkoStepPhases[id][nextIndex] = 1;
+  }
+
+  renderVainkoLesson();
 }
 
 function appendVainkoMessage(role, content) {
   const container = document.getElementById('vainko-messages');
   if (!container) return;
   const div = document.createElement('div');
-  div.className = 'vainko-msg ' + role;
-  const processed = content.replace(/\[CMD:(.*?)\]/g, (_, cmd) => {
-    const escaped = cmd.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    return `<span class="cmd-chip" onclick="copyVainkoCmd('${escaped}')" title="Click to copy">${cmd}</span>`;
+  div.className = 'v-msg ' + role;
+  const processed = content.replace(/\[CMD:\s*(.*?)\]/g, function(_, cmd) {
+    const trimmed = cmd.trim();
+    const escaped = trimmed.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    return '<span class="v-cmd-chip" onclick="copyVainkoCmd(\'' + escaped + '\')" title="Click to copy">' + trimmed + '</span>';
   });
   div.innerHTML = processed;
   container.appendChild(div);
@@ -546,12 +1010,15 @@ async function sendVainkoMessage() {
   if (!message) return;
   input.value = '';
   appendVainkoMessage('user', message);
+  sendVainkoToApi(message);
+}
 
-  const typingDiv = document.createElement('div');
-  typingDiv.className = 'vainko-msg assistant vainko-typing';
-  typingDiv.textContent = 'Vainko is thinking...';
-  typingDiv.id = 'vainko-typing';
+async function sendVainkoToApi(message) {
   const container = document.getElementById('vainko-messages');
+  const typingDiv = document.createElement('div');
+  typingDiv.className = 'v-typing-indicator';
+  typingDiv.id = 'vainko-typing';
+  typingDiv.innerHTML = '<div class="v-typing-dot"></div><div class="v-typing-dot"></div><div class="v-typing-dot"></div>';
   if (container) { container.appendChild(typingDiv); container.scrollTop = container.scrollHeight; }
 
   try {
@@ -570,47 +1037,34 @@ async function sendVainkoMessage() {
   }
 }
 
-function startVainkoLesson(lessonId, el) {
-  document.querySelectorAll('.vainko-lesson-item').forEach(i => i.classList.remove('active'));
-  if (el) el.classList.add('active');
-  const prompts = {
-    'navigation':  'Teach me about terminal navigation — cd, ls, pwd, and moving around the filesystem.',
-    'permissions': 'Teach me about file permissions in Linux — chmod, chown, and understanding permission groups.',
-    'networking':  'Teach me about networking commands — ping, curl, wget, ifconfig, netstat, and more.',
-    'kali-tools':  'Teach me about essential Kali Linux tools — nmap, nikto, john, and other security tools.',
-    'scripting':   'Teach me bash scripting — variables, loops, conditionals, and writing simple scripts.',
-    'packages':    'Teach me about package management — apt, dpkg, and managing software in Linux.',
-  };
+async function sendVainkoToApiSilent(message) {
   const container = document.getElementById('vainko-messages');
-  if (container) container.innerHTML = '';
-  const prompt = prompts[lessonId] || 'Tell me about this topic.';
-  appendVainkoMessage('user', prompt);
-  document.getElementById('vainko-input').value = '';
+  const typingDiv = document.createElement('div');
+  typingDiv.className = 'v-typing-indicator';
+  typingDiv.id = 'vainko-typing';
+  typingDiv.innerHTML = '<div class="v-typing-dot"></div><div class="v-typing-dot"></div><div class="v-typing-dot"></div>';
+  if (container) { container.appendChild(typingDiv); container.scrollTop = container.scrollHeight; }
 
-  // Send to API
-  (async () => {
-    const typingDiv = document.createElement('div');
-    typingDiv.className = 'vainko-msg assistant vainko-typing';
-    typingDiv.textContent = 'Vainko is thinking...';
-    typingDiv.id = 'vainko-typing';
-    if (container) { container.appendChild(typingDiv); container.scrollTop = container.scrollHeight; }
-
-    try {
-      const res = await fetch('/api/vainko', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(65000),
-        body: JSON.stringify({ message: prompt, os: currentOS || 'linux', skill: skillLevel || 'beginner' }),
-      });
-      const data = await res.json();
-      document.getElementById('vainko-typing')?.remove();
-      appendVainkoMessage('assistant', data.reply || data.error || 'No response.');
-    } catch (err) {
-      document.getElementById('vainko-typing')?.remove();
-      appendVainkoMessage('assistant', err.name === 'TimeoutError' ? 'Vainko took too long. Try a shorter question.' : 'Error contacting Vainko.');
-    }
-  })();
+  try {
+    const res = await fetch('/api/vainko', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(65000),
+      body: JSON.stringify({ message, os: currentOS || 'linux', skill: skillLevel || 'beginner' }),
+    });
+    const data = await res.json();
+    document.getElementById('vainko-typing')?.remove();
+    appendVainkoMessage('assistant', data.reply || data.error || 'No response.');
+  } catch (err) {
+    document.getElementById('vainko-typing')?.remove();
+    appendVainkoMessage('assistant', err.name === 'TimeoutError' ? 'Vainko took too long.' : 'Error contacting Vainko.');
+  }
 }
+
+// Legacy function stubs for backward compatibility
+function renderVainkoSteps() { renderVainkoLesson(); }
+function clickVainkoStep(index) { goToVainkoStep(index); }
+function askVainkoAboutStep() { /* removed */ }
 
 // ─── Ghost Hints ──────────────────────────────────────────────────────────────
 
