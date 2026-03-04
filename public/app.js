@@ -236,7 +236,7 @@ async function handleLogout() {
 
 function selectOS(os) {
   currentOS = os;
-  sessionId = localStorage.getItem(SESSION_KEY) || crypto.randomUUID();
+  sessionId = localStorage.getItem(SESSION_KEY) || (crypto.randomUUID?.() || ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)));
   localStorage.setItem(SESSION_KEY, sessionId);
   localStorage.setItem(OS_KEY, os);
 
