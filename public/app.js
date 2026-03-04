@@ -409,8 +409,33 @@ function openTerminalPage(os, osName, sid, isReconnect) {
       }
     });
 
-    // Custom key handler for ghost hint Tab/Escape
+    // Custom key handler for ghost hint Tab/Escape + Ctrl+C/V copy-paste
     term.attachCustomKeyEventHandler((event) => {
+      // ── Ctrl+C: copy selection OR send SIGINT ──────────────────────────
+      if (event.ctrlKey && event.key === 'c' && event.type === 'keydown') {
+        if (term.hasSelection()) {
+          // Text is selected → copy to clipboard, do NOT send ^C
+          navigator.clipboard.writeText(term.getSelection());
+          term.clearSelection();
+          return false;           // swallow the event
+        }
+        // No selection → let xterm send \x03 (SIGINT) via onData as normal
+        return true;
+      }
+
+      // ── Ctrl+V: paste from clipboard ──────────────────────────────────
+      if (event.ctrlKey && event.key === 'v' && event.type === 'keydown') {
+        event.preventDefault();   // stop browser native paste (prevents double-paste)
+        event.stopPropagation();
+        navigator.clipboard.readText().then((text) => {
+          if (text && ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'input', sessionId, data: btoa(text) }));
+          }
+        }).catch(() => {});       // clipboard permission denied — ignore
+        return false;             // swallow the event so ^V isn't sent
+      }
+
+      // ── Ghost-hint handling ───────────────────────────────────────────
       if (vainkoHintsEnabled && currentGhostHint && ghostHintActive) {
         if (event.key === 'Tab' && event.type === 'keydown') {
           event.preventDefault();
