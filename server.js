@@ -488,8 +488,8 @@ app.get("/api/session/:id", (req, res) => {
 });
 
 // ─── Vainko — Ollama-powered AI trainer (local, free, no API key) ─────────────
-const OLLAMA_MODEL = 'llama3.2:1b';   // change to 'llama3.2' (3B) for better quality
-const OLLAMA_TIMEOUT = 60_000; // 60 seconds max for any Ollama request
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:0.5b';  // tiny & fast on low-RAM servers
+const OLLAMA_TIMEOUT = 300_000; // 5 minutes — low-RAM servers need time
 
 // Chat endpoint — accepts { message, os, skill } or raw { contents, system_instruction }
 app.post("/api/vainko", async (req, res) => {
@@ -520,7 +520,7 @@ OS: ${os}, skill: ${skill}`;
       body: JSON.stringify({
         model: OLLAMA_MODEL,
         stream: false,
-        options: { num_predict: 100, temperature: 0.4 },
+        options: { num_predict: 100, temperature: 0.4, num_ctx: 512 },
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }
@@ -558,7 +558,7 @@ app.get('/api/vainko-hint', async (req, res) => {
       body: JSON.stringify({
         model: OLLAMA_MODEL,
         stream: false,
-        options: { num_predict: 30, temperature: 0.1 },
+        options: { num_predict: 30, temperature: 0.1, num_ctx: 512 },
         messages: [
           { role: 'system', content: `You are a ${os || 'Linux'} terminal autocomplete engine. Return ONLY one single complete command. No explanation, no markdown, no punctuation, nothing extra. Just the raw command string that completes what the user started typing. If the input is ambiguous or you are unsure, return an empty string.` },
           { role: 'user', content: cmd }
@@ -590,7 +590,7 @@ app.post('/api/vainko-generate', async (req, res) => {
       body: JSON.stringify({
         model: OLLAMA_MODEL,
         stream: false,
-        options: { num_predict: 150, temperature: 0.2 },
+        options: { num_predict: 150, temperature: 0.2, num_ctx: 512 },
         messages: [
           { role: 'system', content: `You are a terminal command helper for ${os || 'Linux'} (skill: ${skill || 'beginner'}). Given a natural language description of what the user wants to do, reply with the exact terminal command and a short explanation. If the user's input is not a meaningful request for a terminal command (e.g. gibberish, greetings, single words like "ok" or "yes"), reply with:
 COMMAND: NONE
