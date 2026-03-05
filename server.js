@@ -20,6 +20,7 @@ const Docker  = require("dockerode");
 const path    = require("path");
 const { Readable } = require("stream");
 const { v4: uuidv4 } = require("uuid");
+const crypto = require("crypto");
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -83,21 +84,27 @@ CMD ["pwsh", "-NoLogo", "-NoProfile"]
   },
 };
 
+// Dynamically compute a hash for the image tag so changes to the Dockerfile force a rebuild
+for (const key of Object.keys(CUSTOM_IMAGES)) {
+  const hash = crypto.createHash('md5').update(CUSTOM_IMAGES[key].dockerfile).digest('hex').substring(0, 8);
+  CUSTOM_IMAGES[key].imageTag = `${key}:${hash}`;
+}
+
 const OS_CONFIG = {
   kali: {
-    image:   "sheller-kali",
+    image:   CUSTOM_IMAGES["sheller-kali"].imageTag,
     shell:   ["/bin/bash", "-i"],
     name:    "Kali Linux",
     workdir: "/root",
   },
   ubuntu: {
-    image:   "sheller-ubuntu",
+    image:   CUSTOM_IMAGES["sheller-ubuntu"].imageTag,
     shell:   ["/bin/bash", "-i"],
     name:    "Ubuntu",
     workdir: "/root",
   },
   powershell: {
-    image:   "sheller-powershell",
+    image:   CUSTOM_IMAGES["sheller-powershell"].imageTag,
     shell:   ["/bin/sh", "-c", "stty -echo 2>/dev/null; exec pwsh -NoLogo"],
     name:    "PowerShell",
     workdir: "/root",
@@ -165,12 +172,13 @@ async function buildImage(tag, dockerfileContent) {
 }
 
 async function ensureCustomImages() {
-  for (const [tag, cfg] of Object.entries(CUSTOM_IMAGES)) {
+  for (const [key, cfg] of Object.entries(CUSTOM_IMAGES)) {
+    const tag = cfg.imageTag;
     try {
       await docker.getImage(tag).inspect();
-      console.log(`[image] ${tag} � already built`);
+      console.log(`[image] ${tag} - already built`);
     } catch (_) {
-      console.log(`[image] building ${tag} (this takes ~1�2 min, once ever)�`);
+      console.log(`[image] building ${tag} (this takes ~1-2 min, once ever)...`);
       try {
         await buildImage(tag, cfg.dockerfile);
         console.log(`[image] ${tag} ready`);
@@ -316,11 +324,12 @@ wss.on("connection", (ws) => {
 
           // Build or pull image if missing
           if (!(await imageExists(cfg.image))) {
-            if (CUSTOM_IMAGES[cfg.image]) {
+            const customImgBaseKey = cfg.image.split(':')[0];
+            if (CUSTOM_IMAGES[customImgBaseKey] && CUSTOM_IMAGES[customImgBaseKey].imageTag === cfg.image) {
               // Custom image — build it inline (not on Docker Hub)
               wsSend(ws, { type: "status", message: `Building ${cfg.image} image — this takes 1–2 min (first time only)…` });
               try {
-                await buildImage(cfg.image, CUSTOM_IMAGES[cfg.image].dockerfile);
+                await buildImage(cfg.image, CUSTOM_IMAGES[customImgBaseKey].dockerfile);
                 wsSend(ws, { type: "status", message: `Image ready. Starting container…` });
               } catch (buildErr) {
                 wsSend(ws, { type: "error", message: `Failed to build ${cfg.image}: ${buildErr.message}` });
