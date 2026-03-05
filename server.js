@@ -85,10 +85,9 @@ CMD ["pwsh", "-NoLogo", "-NoProfile"]
   },
 };
 
-// Dynamically compute a hash for the image tag so changes to the Dockerfile force a rebuild
+// Use :latest tags — skip building if image already exists
 for (const key of Object.keys(CUSTOM_IMAGES)) {
-  const hash = crypto.createHash('md5').update(CUSTOM_IMAGES[key].dockerfile).digest('hex').substring(0, 8);
-  CUSTOM_IMAGES[key].imageTag = `${key}:${hash}`;
+  CUSTOM_IMAGES[key].imageTag = `${key}:latest`;
 }
 
 const OS_CONFIG = {
