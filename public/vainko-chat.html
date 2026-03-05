@@ -1144,32 +1144,236 @@
         desc: 'Inspect and troubleshoot network connections',
         difficulty: 'intermediate',
         time: '~12 min',
-        available: false,
-        steps: []
+        available: true,
+        steps: [
+          {
+            title: 'Viewing network interfaces with ip addr',
+            info: '<span class="highlight">ip addr</span> shows all network interfaces and IP addresses. <span class="highlight">lo</span> is loopback (<span class="highlight">127.0.0.1</span>). <span class="highlight">eth0</span> or <span class="highlight">ens3</span> is your main network interface. Every device on a network has a unique IP address.',
+            mcqQuestion: 'What is the loopback IP address?',
+            mcqOptions: ['192.168.1.1', '127.0.0.1', '0.0.0.0', '10.0.0.1'],
+            mcqAnswer: '127.0.0.1',
+            terminalPrompt: 'Show all network interfaces and IP addresses',
+            terminalExpected: ['ip addr'],
+            terminalOutput: '1: lo: <LOOPBACK,UP> mtu 65536\n    inet 127.0.0.1/8 scope host lo\n2: eth0: <BROADCAST,MULTICAST,UP> mtu 1500\n    inet 172.17.0.2/16 scope global eth0'
+          },
+          {
+            title: 'Testing connectivity with ping',
+            info: '<span class="highlight">ping</span> tests connectivity by sending ICMP packets to a host. <span class="highlight">ping -c 4 google.com</span> sends exactly 4 packets. Response time is shown in ms. No response means host is unreachable or blocking ICMP.',
+            mcqQuestion: 'What flag sends exactly 4 ping packets?',
+            mcqOptions: ['-n 4', '-t 4', '-c 4', '-l 4'],
+            mcqAnswer: '-c 4',
+            terminalPrompt: 'Ping localhost with exactly 3 packets',
+            terminalExpected: ['ping -c 3 localhost'],
+            terminalOutput: 'PING localhost (127.0.0.1) 56(84) bytes of data.\n64 bytes from localhost: icmp_seq=1 ttl=64 time=0.028 ms\n64 bytes from localhost: icmp_seq=2 ttl=64 time=0.031 ms\n64 bytes from localhost: icmp_seq=3 ttl=64 time=0.029 ms\n--- localhost ping statistics ---\n3 packets transmitted, 3 received, 0% packet loss'
+          },
+          {
+            title: 'Scanning ports with nmap',
+            info: '<span class="highlight">nmap</span> scans hosts for open ports. <span class="highlight">nmap localhost</span> scans your machine. <span class="highlight">-sV</span> detects service versions. <span class="highlight">-p 80,443</span> scans specific ports only. Used for network reconnaissance and security auditing.',
+            mcqQuestion: 'What does nmap -sV do?',
+            mcqOptions: ['Scans faster', 'Detects service versions', 'Scans all ports', 'Enables stealth mode'],
+            mcqAnswer: 'Detects service versions',
+            terminalPrompt: 'Scan localhost for open ports',
+            terminalExpected: ['nmap localhost'],
+            terminalOutput: 'Starting Nmap 7.94 ( https://nmap.org )\nNmap scan report for localhost (127.0.0.1)\nHost is up (0.00010s latency).\nNot shown: 999 closed ports\nPORT   STATE SERVICE\n22/tcp open  ssh\nNmap done: 1 IP address (1 host up) scanned in 0.08 seconds'
+          },
+          {
+            title: 'Transferring data with curl',
+            info: '<span class="highlight">curl</span> transfers data from URLs. <span class="highlight">curl http://example.com</span> fetches a webpage. <span class="highlight">-o file</span> saves output to a file. <span class="highlight">-I</span> shows only headers. <span class="highlight">-X POST</span> sends a POST request. Essential for testing APIs.',
+            mcqQuestion: 'Which curl flag saves output to a file?',
+            mcqOptions: ['-s', '-o', '-I', '-v'],
+            mcqAnswer: '-o',
+            terminalPrompt: 'Fetch the headers of example.com',
+            terminalExpected: ['curl -I http://example.com'],
+            terminalOutput: 'HTTP/1.1 200 OK\nContent-Type: text/html; charset=UTF-8\nContent-Length: 1256\nConnection: keep-alive\nServer: ECS (dcb/7F3B)'
+          },
+          {
+            title: 'Checking listening ports with ss',
+            info: '<span class="highlight">netstat -tulpn</span> shows all listening ports and which process is using them. <span class="highlight">ss -tulpn</span> is the modern replacement. <span class="highlight">-t</span> TCP, <span class="highlight">-u</span> UDP, <span class="highlight">-l</span> listening, <span class="highlight">-p</span> process, <span class="highlight">-n</span> numeric ports.',
+            mcqQuestion: 'What does the -l flag show in netstat?',
+            mcqOptions: ['Logged connections', 'Listening ports', 'Local addresses', 'Long format'],
+            mcqAnswer: 'Listening ports',
+            terminalPrompt: 'Show all listening ports',
+            terminalExpected: ['ss -tulpn'],
+            terminalOutput: 'Netid  State   Recv-Q  Send-Q   Local Address:Port    Peer Address:Port\ntcp    LISTEN  0       128      0.0.0.0:22             0.0.0.0:*      users:(("sshd",pid=1,fd=3))'
+          }
+        ]
       },
       'kali-tools': {
         title: 'Kali Tools',
         desc: 'Essential security tools in Kali Linux',
         difficulty: 'intermediate',
         time: '~15 min',
-        available: false,
-        steps: []
+        available: true,
+        steps: [
+          {
+            title: 'Network scanning with nmap',
+            info: '<span class="highlight">nmap</span> is the most used network scanner in security. <span class="highlight">nmap -sC</span> runs default scripts. <span class="highlight">nmap -A</span> enables OS detection, version detection, scripts and traceroute. Always get permission before scanning.',
+            mcqQuestion: 'What does nmap -A enable?',
+            mcqOptions: ['Anonymous scan', 'Aggressive scan with OS detection', 'All ports scan', 'API scan mode'],
+            mcqAnswer: 'Aggressive scan with OS detection',
+            terminalPrompt: 'Run a basic nmap scan on localhost',
+            terminalExpected: ['nmap localhost'],
+            terminalOutput: 'Starting Nmap 7.94 ( https://nmap.org )\nNmap scan report for localhost (127.0.0.1)\nHost is up (0.00010s latency).\nNot shown: 999 closed ports\nPORT   STATE SERVICE\n22/tcp open  ssh\nNmap done: 1 IP address (1 host up) scanned in 0.08 seconds'
+          },
+          {
+            title: 'Web server scanning with nikto',
+            info: '<span class="highlight">nikto</span> is a web server scanner. It checks for dangerous files, outdated software, and misconfigurations. <span class="highlight">nikto -h http://target.com</span> scans a target. Only use on systems you own or have permission to test.',
+            mcqQuestion: 'What does nikto scan for?',
+            mcqOptions: ['Open ports', 'Web server vulnerabilities', 'DNS records', 'WiFi networks'],
+            mcqAnswer: 'Web server vulnerabilities',
+            terminalPrompt: 'Show nikto help options',
+            terminalExpected: ['nikto -Help'],
+            terminalOutput: 'Options:\n  -h+    Target host\n  -p+    Port to use\n  -ssl   Force ssl mode\n  -Tuning+  Scan tuning\n  -output+  Write output to file'
+          },
+          {
+            title: 'Password cracking with john',
+            info: '<span class="highlight">john</span> (John the Ripper) is a password cracker. It takes a file of hashed passwords and tries to crack them using wordlists or brute force. <span class="highlight">john --wordlist=/usr/share/wordlists/rockyou.txt hashfile</span> is a common usage.',
+            mcqQuestion: 'What does john use to crack passwords?',
+            mcqOptions: ['Rainbow tables only', 'Wordlists and brute force', 'Network sniffing', 'SQL injection'],
+            mcqAnswer: 'Wordlists and brute force',
+            terminalPrompt: 'Show john the ripper version',
+            terminalExpected: ['john --version'],
+            terminalOutput: 'John the Ripper 1.9.0-jumbo-1'
+          },
+          {
+            title: 'Network login cracking with hydra',
+            info: '<span class="highlight">hydra</span> is a network login cracker. It tries username/password combinations against services like SSH, FTP, HTTP. <span class="highlight">hydra -l admin -P wordlist.txt ssh://target</span> attacks SSH. Never use without permission.',
+            mcqQuestion: 'What type of attack does hydra perform?',
+            mcqOptions: ['Port scanning', 'Password brute forcing', 'Packet sniffing', 'DNS poisoning'],
+            mcqAnswer: 'Password brute forcing',
+            terminalPrompt: 'Show hydra help',
+            terminalExpected: ['hydra -h'],
+            terminalOutput: 'Hydra v9.4 (c) 2022 by van Hauser/THC & David Maciejak\nSyntax: hydra [-l LOGIN|-L FILE] [-p PASS|-P FILE] [-t TASKS] target service\nOptions:\n  -l LOGIN    single login name\n  -P FILE     password list\n  -t TASKS    number of parallel connections'
+          },
+          {
+            title: 'Directory brute forcing with dirb',
+            info: '<span class="highlight">dirb</span> is a web content scanner. It brute forces directories and files on web servers using wordlists. Finds hidden admin panels, backup files, and exposed directories. <span class="highlight">dirb http://target.com</span> runs a basic scan.',
+            mcqQuestion: 'What does dirb find on web servers?',
+            mcqOptions: ['Open ports', 'Hidden directories and files', 'User passwords', 'Network routes'],
+            mcqAnswer: 'Hidden directories and files',
+            terminalPrompt: 'Show dirb help options',
+            terminalExpected: ['dirb'],
+            terminalOutput: 'DIRB v2.22\nUsage: dirb <url_base> [<wordlist_file(s)>] [options]\n  -o <output_file>  Save output to file\n  -r                Don\'t search recursively\n  -z <millisecs>    Delay between requests'
+          }
+        ]
       },
       scripting: {
         title: 'Scripting',
         desc: 'Automate tasks with bash scripts',
         difficulty: 'intermediate',
         time: '~12 min',
-        available: false,
-        steps: []
+        available: true,
+        steps: [
+          {
+            title: 'Getting started with bash scripts',
+            info: 'A bash script starts with <span class="highlight">#!/bin/bash</span> called a shebang. This tells the system which interpreter to use. Create a file, add your commands, make it executable with <span class="highlight">chmod +x script.sh</span>, then run with <span class="highlight">./script.sh</span>.',
+            mcqQuestion: 'What is the first line of a bash script called?',
+            mcqOptions: ['Header', 'Shebang', 'Declaration', 'Init'],
+            mcqAnswer: 'Shebang',
+            terminalPrompt: 'Print the bash version',
+            terminalExpected: ['bash --version'],
+            terminalOutput: 'GNU bash, version 5.2.15(1)-release (x86_64-pc-linux-gnu)'
+          },
+          {
+            title: 'Working with variables',
+            info: 'Variables in bash: <span class="highlight">name=\'John\'</span> assigns a value. <span class="highlight">echo $name</span> prints it. No spaces around <span class="highlight">=</span>. Use quotes for strings with spaces. <span class="highlight">$1</span> <span class="highlight">$2</span> are positional arguments passed when running the script.',
+            mcqQuestion: 'How do you access a variable in bash?',
+            mcqOptions: ['#variable', '%variable', '$variable', '@variable'],
+            mcqAnswer: '$variable',
+            terminalPrompt: 'Print the value of the PATH variable',
+            terminalExpected: ['echo $PATH'],
+            terminalOutput: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+          },
+          {
+            title: 'Conditional statements with if',
+            info: '<span class="highlight">if</span> statements in bash: <span class="highlight">if [ condition ]; then ... fi</span>. Comparisons: <span class="highlight">-eq</span> equal, <span class="highlight">-ne</span> not equal, <span class="highlight">-gt</span> greater than, <span class="highlight">-lt</span> less than for numbers. <span class="highlight">==</span> and <span class="highlight">!=</span> for strings. <span class="highlight">[ -f file ]</span> checks if file exists.',
+            mcqQuestion: 'Which operator checks if two numbers are equal in bash?',
+            mcqOptions: ['==', '-eq', '=', '-is'],
+            mcqAnswer: '-eq',
+            terminalPrompt: 'Check if the root directory exists',
+            terminalExpected: ['[ -d /root ] && echo exists'],
+            terminalOutput: 'exists'
+          },
+          {
+            title: 'Loops in bash',
+            info: '<span class="highlight">for</span> loops: <span class="highlight">for i in 1 2 3; do echo $i; done</span>. <span class="highlight">while</span> loops: <span class="highlight">while [ condition ]; do ... done</span>. <span class="highlight">for f in *.txt; do</span> iterates over files. Loops are essential for automating repetitive tasks.',
+            mcqQuestion: 'What keyword ends a for loop in bash?',
+            mcqOptions: ['end', 'done', 'fi', 'esac'],
+            mcqAnswer: 'done',
+            terminalPrompt: 'Print numbers 1 to 3 using a for loop',
+            terminalExpected: ['for i in 1 2 3; do echo $i; done'],
+            terminalOutput: '1\n2\n3'
+          },
+          {
+            title: 'Making scripts executable',
+            info: '<span class="highlight">chmod +x script.sh</span> makes a script executable. <span class="highlight">./script.sh</span> runs it from current directory. <span class="highlight">/bin/bash script.sh</span> runs without making it executable. Scripts in <span class="highlight">/usr/local/bin/</span> can be run from anywhere.',
+            mcqQuestion: 'What does chmod +x do to a script?',
+            mcqOptions: ['Deletes it', 'Makes it executable', 'Compresses it', 'Encrypts it'],
+            mcqAnswer: 'Makes it executable',
+            terminalPrompt: 'Make a file called test.sh executable',
+            terminalExpected: ['chmod +x test.sh'],
+            terminalOutput: ''
+          }
+        ]
       },
       packages: {
         title: 'Package Management',
         desc: 'Install, update, and remove software',
         difficulty: 'beginner',
         time: '~8 min',
-        available: false,
-        steps: []
+        available: true,
+        steps: [
+          {
+            title: 'Understanding apt',
+            info: '<span class="highlight">apt</span> is the package manager for Debian-based systems like Ubuntu and Kali. Packages are software programs. apt downloads and installs them from repositories — remote servers with thousands of packages.',
+            mcqQuestion: 'What is apt used for?',
+            mcqOptions: ['Managing files', 'Managing software packages', 'Managing users', 'Managing networks'],
+            mcqAnswer: 'Managing software packages',
+            terminalPrompt: 'Show apt help',
+            terminalExpected: ['apt --help'],
+            terminalOutput: 'apt 2.6.1 (amd64)\nUsage: apt [options] command\n\nMost used commands:\n  list - list packages\n  search - search in package descriptions\n  show - show package details\n  install - install packages\n  remove - remove packages\n  update - update list of available packages'
+          },
+          {
+            title: 'Updating the package list',
+            info: '<span class="highlight">apt-get update</span> refreshes the package list from repositories. It does NOT install or upgrade anything — it just downloads the latest list of available packages. Always run this before installing.',
+            mcqQuestion: 'What does apt-get update do?',
+            mcqOptions: ['Upgrades all packages', 'Refreshes package list', 'Installs updates', 'Restarts services'],
+            mcqAnswer: 'Refreshes package list',
+            terminalPrompt: 'Update the package list',
+            terminalExpected: ['apt-get update'],
+            terminalOutput: 'Hit:1 http://archive.ubuntu.com/ubuntu jammy InRelease\nGet:2 http://archive.ubuntu.com/ubuntu jammy-updates InRelease [119 kB]\nReading package lists... Done'
+          },
+          {
+            title: 'Installing and removing packages',
+            info: '<span class="highlight">apt install packagename</span> installs a package. <span class="highlight">apt remove packagename</span> removes it but keeps config files. <span class="highlight">apt purge packagename</span> removes everything including configs. <span class="highlight">-y</span> flag skips confirmation prompts.',
+            mcqQuestion: 'What is the difference between remove and purge?',
+            mcqOptions: ['No difference', 'Purge also removes config files', 'Remove is faster', 'Purge only removes configs'],
+            mcqAnswer: 'Purge also removes config files',
+            terminalPrompt: 'Install the curl package',
+            terminalExpected: ['apt install curl -y', 'apt install curl', 'apt-get install curl -y', 'apt-get install curl'],
+            terminalOutput: 'Reading package lists... Done\nBuilding dependency tree... Done\ncurl is already the newest version (7.88.1-10).\n0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.'
+          },
+          {
+            title: 'Searching for packages',
+            info: '<span class="highlight">apt search keyword</span> searches for packages by name or description. <span class="highlight">apt show packagename</span> shows detailed info about a package including size, dependencies, and description. Useful before installing.',
+            mcqQuestion: 'Which command shows details about a specific package?',
+            mcqOptions: ['apt info', 'apt show', 'apt describe', 'apt details'],
+            mcqAnswer: 'apt show',
+            terminalPrompt: 'Search for packages related to nmap',
+            terminalExpected: ['apt search nmap'],
+            terminalOutput: 'Sorting... Done\nFull Text Search... Done\nnmap/stable 7.94+git20230807 amd64\n  The Network Mapper\nndiff/stable 7.94+git20230807 all\n  The Network Mapper - result compare utility'
+          },
+          {
+            title: 'Using dpkg for local packages',
+            info: '<span class="highlight">dpkg</span> is the lower-level package tool. <span class="highlight">dpkg -l</span> lists all installed packages. <span class="highlight">dpkg -i package.deb</span> installs a local .deb file. <span class="highlight">dpkg -r packagename</span> removes a package. apt uses dpkg under the hood.',
+            mcqQuestion: 'What does dpkg -l show?',
+            mcqOptions: ['Available packages', 'All installed packages', 'Package logs', 'Dependencies'],
+            mcqAnswer: 'All installed packages',
+            terminalPrompt: 'List all installed packages',
+            terminalExpected: ['dpkg -l'],
+            terminalOutput: 'Desired=Unknown/Install/Remove/Purge/Hold\n| Status=Not/Inst/Conf-files/Unpacked/halF-conf\n||/ Name            Version         Architecture Description\n+++-===============-===============-============-===========================\nii  adduser         3.134           all          add and remove users\nii  apt             2.6.1           amd64        commandline package manager\nii  base-files      12.4            amd64        Debian base system files'
+          }
+        ]
       }
     };
 
@@ -1197,11 +1401,9 @@
       const listEl = document.getElementById('lesson-list');
       for (const [id, lesson] of Object.entries(LESSONS)) {
         const card = document.createElement('div');
-        card.className = 'lesson-card' + (lesson.available ? '' : ' locked');
+        card.className = 'lesson-card';
         card.dataset.lessonId = id;
-        if (lesson.available) {
-          card.onclick = () => selectLesson(id);
-        }
+        card.onclick = () => selectLesson(id);
         card.innerHTML =
           '<div class="lesson-card-title">' + lesson.title + '</div>' +
           '<div class="lesson-card-desc">' + lesson.desc + '</div>' +

@@ -52,9 +52,10 @@ CMD ["/bin/bash", "-i"]
     dockerfile: `FROM ubuntu:latest
 ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
-    bash coreutils procps iproute2 iputils-ping net-tools \\
-    curl wget dnsutils sudo python3 vim nano \\
-    less file unzip git openssh-client
+    curl wget git vim nano iputils-ping net-tools dnsutils \\
+    python3 python3-pip nodejs npm gcc g++ make \\
+    strace ltrace lsof htop procps psmisc \\
+    unzip zip file tree netcat-openbsd nmap openssh-client
 RUN printf '#!/bin/bash\\napt-get update -qq &>/dev/null &\\nexec "$@"\\n' > /usr/local/bin/entrypoint.sh \\
     && chmod +x /usr/local/bin/entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
