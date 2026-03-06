@@ -32,6 +32,7 @@ const PORT = process.env.PORT || 3000;
 
 const CUSTOM_IMAGES = {
   "sheller-kali": {
+    imageTag: "sheller-kali",
     baseImage: "kalilinux/kali-rolling",
     dockerfile: `FROM kalilinux/kali-rolling
 ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root
@@ -48,14 +49,17 @@ CMD ["/bin/bash", "-i"]
 `,
   },
   "sheller-ubuntu": {
+    imageTag: "sheller-ubuntu",
     baseImage: "ubuntu:latest",
     dockerfile: `FROM ubuntu:latest
 ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root
-RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
-    curl wget git vim nano iputils-ping net-tools dnsutils \\
-    python3 python3-pip nodejs npm gcc g++ make \\
-    strace ltrace lsof htop procps psmisc \\
-    unzip zip file tree netcat-openbsd nmap openssh-client
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
+    bash coreutils procps iproute2 iputils-ping net-tools \
+    curl wget dnsutils sudo python3 python3-pip vim nano \
+    less file unzip zip git openssh-client \
+    strace ltrace lsof htop tree \
+    gcc g++ make nodejs npm \
+    netcat-openbsd nmap whois traceroute
 RUN printf '#!/bin/bash\\napt-get update -qq &>/dev/null &\\nexec "$@"\\n' > /usr/local/bin/entrypoint.sh \\
     && chmod +x /usr/local/bin/entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
@@ -64,6 +68,7 @@ CMD ["/bin/bash", "-i"]
 `,
   },
   "sheller-powershell": {
+    imageTag: "sheller-powershell",
     baseImage: "mcr.microsoft.com/powershell",
     dockerfile: `FROM mcr.microsoft.com/powershell
 ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root POWERSHELL_TELEMETRY_OPTOUT=1
@@ -85,9 +90,10 @@ CMD ["pwsh", "-NoLogo", "-NoProfile"]
   },
 };
 
-// Use :latest tags — skip building if image already exists
+// Dynamically compute a hash for the image tag so changes to the Dockerfile force a rebuild
 for (const key of Object.keys(CUSTOM_IMAGES)) {
-  CUSTOM_IMAGES[key].imageTag = `${key}:latest`;
+  const hash = crypto.createHash('md5').update(CUSTOM_IMAGES[key].dockerfile).digest('hex').substring(0, 8);
+  CUSTOM_IMAGES[key].imageTag = `${key}:${hash}`;
 }
 
 const OS_CONFIG = {
