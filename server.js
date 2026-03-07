@@ -36,20 +36,80 @@ const CUSTOM_IMAGES = {
     imageTag: "sheller-kali",
     baseImage: "kalilinux/kali-rolling",
     dockerfile: `FROM kalilinux/kali-rolling
-ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root
+ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root DISPLAY=:1
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
     bash coreutils procps iproute2 iputils-ping net-tools \\
     curl wget dnsutils sudo python3 vim nano whois \\
     nmap netcat-openbsd less file unzip git openssh-client \\
-    xvfb x11vnc novnc websockify xterm fluxbox
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y wireshark
+    xvfb x11vnc novnc websockify xterm fluxbox \\
+    libxrender1 libxtst6 libxi6 libxrandr2 \\
+    libgtk-3-0 libglib2.0-0 libnss3 libasound2t64 \\
+    dbus-x11 fonts-liberation xdg-utils wmctrl
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y wireshark burpsuite zaproxy maltego torbrowser-launcher ghidra armitage || true
+
+ENV _JAVA_OPTIONS='-Dsun.java2d.opengl=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false'
+
 # Keep apt lists so apt install works instantly — refresh in background on startup
 RUN printf '#!/bin/bash\\napt-get update -qq &>/dev/null &\\nexec "$@"\\n' > /usr/local/bin/entrypoint.sh \\
     && chmod +x /usr/local/bin/entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
 RUN mkdir -p /usr/share/novnc && \\
     ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html 2>/dev/null || true
-RUN printf '#!/bin/bash\\nAPP=$1\\nexport DISPLAY=:99\\nXvfb :99 -screen 0 1600x900x24 -ac &\\nsleep 2\\nfluxbox &\\nsleep 1\\n$APP &\\nsleep 1\\nx11vnc -display :99 -nopw -listen 0.0.0.0 -xkb -forever -bg -quiet\\nwebsockify --web=/usr/share/novnc 6080 localhost:5900 &\\n' > /usr/local/bin/gui-launch && chmod +x /usr/local/bin/gui-launch
+
+# --- GUI Launch & Tool Wrappers ---
+RUN printf '#!/bin/bash\\n\\
+echo "[gui-launch] Initializing workstation environment for $@..."\\n\\
+export DISPLAY=:1\\n\\
+export _JAVA_OPTIONS="-Dsun.java2d.opengl=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false"\\n\\
+\\n\\
+# Shared display check and cleanup\\n\\
+if ! xset q &>/dev/null; then\\n\\
+  echo "[gui-launch] Xvfb not running. Cleaning locks and starting..."\\n\\
+  rm -f /tmp/.X1-lock /tmp/.X11-unix/X1\\n\\
+  Xvfb :1 -screen 0 1280x720x24 -ac +extension GLX +render -noreset \u0026\\n\\
+  sleep 2\\n\\
+  echo "[gui-launch] Configuring window manager..."\\n\\
+  mkdir -p /root/.fluxbox\\n\\
+  echo "session.screen0.windowPlacement: CenterPlacement" > /root/.fluxbox/init\\n\\
+  echo "[gui-launch] Starting fluxbox window manager..."\\n\\
+  fluxbox \u0026\\n\\
+  sleep 1\\n\\
+  echo "[gui-launch] Starting x11vnc server (port 5900)..."\\n\\
+  x11vnc -display :1 -nopw -display :1 -xkb -forever -shared -bg -quiet\\n\\
+  echo "[gui-launch] Starting websockify bridge (port 6080)..."\\n\\
+  websockify --web=/usr/share/novnc 6080 localhost:5900 \u0026\\n\\
+  sleep 2\\n\\
+else\\n\\
+  echo "[gui-launch] GUI environment already active."\\n\\
+fi\\n\\
+\\n\\
+echo "[gui-launch] Launching application: $@"\\n\\
+# Persistence Maximizer: Loops for 30s to catch and maximize the window as it appears\\n\\
+(\\n\\
+  for i in {1..30}; do\\n\\
+    wmctrl -r "$1" -b add,maximized_vert,maximized_horz 2>/dev/null\\n\\
+    # Specialized catch for Wireshark which has a long title\\n\\
+    if [[ "$1" == *"wireshark"* ]]; then\\n\\
+      wmctrl -r "Wireshark" -b add,maximized_vert,maximized_horz 2>/dev/null\\n\\
+    fi\\n\\
+    sleep 1\\n\\
+  done\\n\\
+) \u0026\\n\\
+exec "$@"\\n' > /usr/local/bin/gui-launch && chmod +x /usr/local/bin/gui-launch
+
+# Safe launch wrappers for workstation tools
+RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch burpsuite \\"\\$@\\"\\n" > /usr/local/bin/burpsuite-safe && chmod +x /usr/local/bin/burpsuite-safe
+RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch wireshark \\"\\$@\\"\\n" > /usr/local/bin/wireshark-safe && chmod +x /usr/local/bin/wireshark-safe
+RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch zaproxy \\"\\$@\\"\\n" > /usr/local/bin/zaproxy-safe && chmod +x /usr/local/bin/zaproxy-safe
+RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch maltego \\"\\$@\\"\\n" > /usr/local/bin/maltego-safe && chmod +x /usr/local/bin/maltego-safe
+RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch torbrowser-launcher \\"\\$@\\"\\n" > /usr/local/bin/torbrowser-safe && chmod +x /usr/local/bin/torbrowser-safe
+RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch ghidra \\"\\$@\\"\\n" > /usr/local/bin/ghidra-safe && chmod +x /usr/local/bin/ghidra-safe
+RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch armitage \\"\\$@\\"\\n" > /usr/local/bin/armitage-safe && chmod +x /usr/local/bin/armitage-safe
+
+# Update PATH to prioritize safe wrappers
+ENV PATH="/usr/local/bin:$PATH"
+
 WORKDIR /root
 CMD ["/bin/bash", "-i"]
 `,
@@ -130,21 +190,16 @@ const INACTIVITY_MS = 15 * 60 * 1000; // 15 minutes
 
 const app    = express();
 const server = http.createServer(app);
-const wss    = new WebSocket.Server({ noServer: true });
-const docker = new Docker();
 const guiProxy = httpProxy.createProxyServer({ ws: true });
 
 // Proxy error handling to prevent server crashes
 guiProxy.on('error', (err, req, res) => {
   console.error('[guiProxy] error:', err.message);
   if (res && !res.headersSent && typeof res.status === 'function') {
-    res.status(502).json({ error: 'GUI proxy error. The container might still be booting.' });
+    res.status(502).json({ error: 'GUI proxy error. The workstation might still be booting.' });
   }
 });
 
-app.use(express.json());
-
-// ─── Proxy for GUI access (noVNC) ───────────────────────────────────────────
 // Maps /gui/:sessionId/* to localhost:<container_host_port>/*
 app.all('/gui/:sessionId/*', (req, res) => {
   const sess = sessions.get(req.params.sessionId);
@@ -153,7 +208,6 @@ app.all('/gui/:sessionId/*', (req, res) => {
   }
 
   // Rewrite URL for the proxy target (strip /gui/:sessionId)
-  // E.g. /gui/xyz/vnc.html -> /vnc.html
   req.url = req.url.replace(/^\/gui\/[^\/]+/, '');
   if (!req.url || req.url === '') req.url = '/';
 
@@ -161,24 +215,26 @@ app.all('/gui/:sessionId/*', (req, res) => {
     target: `http://localhost:${sess.guiPort}`,
     changeOrigin: true,
   }, (err) => {
-    console.error(`[gui/proxy] HTTP Error:`, err.message);
     if (!res.headersSent) {
-      res.status(502).json({ error: 'GUI is not ready yet. Please wait.' });
+      res.status(502).json({ error: 'GUI is not ready yet.' });
     }
   });
 });
+
+const wss    = new WebSocket.Server({ noServer: true });
+const docker = new Docker();
+
+app.use(express.json());
 
 app.use(express.static(path.join(__dirname, "public")));
 
 server.on('upgrade', (req, socket, head) => {
   const pathname = new URL(req.url, 'http://localhost').pathname;
   
-  // Route /gui/:sessionId/* to the appropriate Docker container GUI port
   if (pathname.startsWith('/gui/')) {
     const sessionId = pathname.split('/')[2];
     const sess = sessions.get(sessionId);
     if (sess && sess.guiPort) {
-      // Rewrite URL for the proxy target (strip /gui/:sessionId)
       req.url = req.url.replace(/^\/gui\/[^\/]+/, '');
       if (!req.url || req.url === '') req.url = '/';
       
@@ -671,16 +727,52 @@ app.post('/api/gui/launch', async (req, res) => {
   }
   try {
     const container = sess.container;
+    
+    // Determine the correct binary (prefer safe wrapper)
+    const workstationTools = ['wireshark', 'burpsuite', 'zaproxy', 'maltego', 'torbrowser-launcher', 'ghidra', 'armitage'];
+    let binaryName = guiApp;
+    if (workstationTools.includes(guiApp)) {
+        binaryName = `${guiApp}-safe`;
+    }
+
+    console.log(`[gui/launch] Starting ${binaryName} for session ${sessionId}`);
 
     await container.exec({
-      Cmd: ['bash', '-c', `nohup /usr/local/bin/gui-launch ${guiApp} > /tmp/gui.log 2>&1 &`],
+      Cmd: ['bash', '-c', `nohup ${binaryName} > /tmp/gui.log 2>&1 &`],
       AttachStdout: false,
       AttachStderr: false,
       Detach: true
     }).then(e => e.start({ Detach: true }));
 
-    // Wait for everything to boot
-    await new Promise(r => setTimeout(r, 8000));
+    // --- Readiness Check ---
+    // Poll for the VNC bridge port (6080) to be active inside the container
+    let ready = false;
+    for (let i = 0; i < 20; i++) {
+      try {
+        const checkExec = await container.exec({
+          Cmd: ['bash', '-c', 'netstat -tulpn | grep :6080'],
+          AttachStdout: true,
+        });
+        const checkStream = await checkExec.start({ hijack: true, stdin: false });
+        let output = '';
+        checkStream.on('data', (d) => output += d.toString());
+        await new Promise(r => checkStream.on('end', r));
+        
+        if (output.includes(':6080')) {
+          ready = true;
+          break;
+        }
+      } catch (_) {}
+      await new Promise(r => setTimeout(r, 1000));
+    }
+
+    if (!ready) {
+      console.error(`[gui/launch] TIMEOUT waiting for 6080 in ${sessionId}`);
+      return res.status(504).json({ error: 'Workstation GUI failed to start in time.' });
+    }
+
+    // Extra stability delay to ensure handshake readiness
+    await new Promise(r => setTimeout(r, 1500));
 
     res.json({ success: true, sessionId });
   } catch (err) {
@@ -688,6 +780,8 @@ app.post('/api/gui/launch', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// The old proxy route is removed in favor of the transparent /gui/ path
 
 // Close GUI processes inside the container
 app.post('/api/gui/close', async (req, res) => {

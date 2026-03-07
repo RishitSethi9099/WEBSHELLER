@@ -251,7 +251,11 @@
               <button onclick="closeGuiPanel()">✕</button>
             </div>
           </div>
-          <iframe id="gui-iframe" src="" allow="cross-origin-isolated"></iframe>
+          <div id="gui-loader" class="gui-loader hidden">
+            <div class="gui-loader-spinner"></div>
+            <p id="gui-loader-text">Starting application...</p>
+          </div>
+          <iframe id="gui-iframe" src="" allow="cross-origin-isolated" class="hidden"></iframe>
         </div>
       </div>
 

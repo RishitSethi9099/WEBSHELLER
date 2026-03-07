@@ -1655,7 +1655,7 @@ function insertGeneratedCmd(cmd) {
 
 // ─── GUI Panel ────────────────────────────────────────────────────────────────
 
-const GUI_APPS = ['wireshark', 'burpsuite', 'burp', 'maltego', 'zenmap', 'gedit', 'mousepad'];
+const GUI_APPS = ['wireshark', 'burpsuite', 'burp', 'maltego', 'zenmap', 'gedit', 'mousepad', 'zaproxy', 'zap', 'torbrowser', 'tor', 'ghidra', 'armitage'];
 
 // Map aliases to actual binary names
 const GUI_APP_BINARY = {
@@ -1666,16 +1666,31 @@ const GUI_APP_BINARY = {
   'zenmap': 'zenmap',
   'gedit': 'gedit',
   'mousepad': 'mousepad',
+  'zap': 'zaproxy',
+  'zaproxy': 'zaproxy',
+  'tor': 'torbrowser-launcher',
+  'torbrowser': 'torbrowser-launcher',
+  'ghidra': 'ghidra',
+  'armitage': 'armitage'
 };
 
 async function launchGuiApp(appName) {
   const binaryName = GUI_APP_BINARY[appName] || appName;
   const panel = document.getElementById('gui-panel');
   const iframe = document.getElementById('gui-iframe');
+  const loader = document.getElementById('gui-loader');
+  const loaderText = document.getElementById('gui-loader-text');
   const title = document.getElementById('gui-panel-title');
 
   title.textContent = binaryName;
   iframe.src = '';
+  iframe.classList.add('hidden');
+  
+  if (loader) {
+    loader.classList.remove('hidden');
+    if (loaderText) loaderText.textContent = `Starting ${binaryName}... Initializing workstation environment.`;
+  }
+  
   panel.classList.remove('hidden');
   document.getElementById('terminal-page')?.classList.add('gui-open');
   if (fitAddon) fitAddon.fit();
@@ -1686,20 +1701,40 @@ async function launchGuiApp(appName) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId, app: binaryName })
     });
+    
+    if (!res.ok) {
+        const errData = await res.json();
+        if (loaderText) loaderText.textContent = `Error: ${errData.error || 'Failed to start GUI'}`;
+        return;
+    }
+
     const data = await res.json();
     if (data.success) {
-      iframe.src = `/gui/${sessionId}/vnc.html?autoconnect=true&reconnect=true&resize=remote&quality=6&compression=2`;
+      if (loader) loader.classList.add('hidden');
+      iframe.classList.remove('hidden');
+      // Force autoconnect with explicit path to avoid proxy resolution errors
+      iframe.src = `/gui/${sessionId}/vnc.html?autoconnect=1&reconnect=1&reconnect_delay=2000&path=gui/${sessionId}/websockify&resize=scale&quality=8&compression=2`;
     }
   } catch (err) {
     console.error('GUI launch failed:', err);
+    if (loaderText) loaderText.textContent = 'Connection failed. Check server logs.';
   }
 }
 
 function closeGuiPanel() {
   const panel = document.getElementById('gui-panel');
+  const loader = document.getElementById('gui-loader');
+  const iframe = document.getElementById('gui-iframe');
+  
   panel.classList.add('hidden');
+  if (loader) loader.classList.add('hidden');
   document.getElementById('terminal-page')?.classList.remove('gui-open');
-  document.getElementById('gui-iframe').src = '';
+  
+  if (iframe) {
+    iframe.src = '';
+    iframe.classList.add('hidden');
+  }
+  
   if (fitAddon) fitAddon.fit();
   fetch('/api/gui/close', {
     method: 'POST',
