@@ -41,6 +41,7 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
     bash coreutils procps iproute2 iputils-ping net-tools \\
     curl wget dnsutils sudo python3 vim nano whois \\
     nmap netcat-openbsd less file unzip git openssh-client \\
+    php php-curl \\
     xvfb x11vnc novnc websockify xterm fluxbox \\
     libxrender1 libxtst6 libxi6 libxrandr2 \\
     libgtk-3-0 libglib2.0-0 libnss3 libasound2t64 \\
@@ -118,17 +119,76 @@ CMD ["/bin/bash", "-i"]
     imageTag: "sheller-ubuntu",
     baseImage: "ubuntu:latest",
     dockerfile: `FROM ubuntu:latest
-ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root
-RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
-    bash coreutils procps iproute2 iputils-ping net-tools \
-    curl wget dnsutils sudo python3 python3-pip vim nano \
-    less file unzip zip git openssh-client \
-    strace ltrace lsof htop tree \
-    gcc g++ make nodejs npm \
-    netcat-openbsd nmap whois traceroute
+ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root DISPLAY=:1
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
+    bash coreutils procps iproute2 iputils-ping net-tools \\
+    curl wget dnsutils sudo python3 python3-pip vim nano \\
+    less file unzip zip git openssh-client \\
+    strace ltrace lsof htop tree \\
+    gcc g++ make nodejs npm \\
+    netcat-openbsd nmap whois traceroute \\
+    xvfb x11vnc novnc websockify xterm fluxbox wmctrl \\
+    libxrender1 libxtst6 libxi6 libxrandr2 \\
+    libgtk-3-0 libglib2.0-0 libnss3 libasound2 \\
+    dbus-x11 fonts-liberation xdg-utils \\
+    firefox gedit gnome-calculator \\
+    php php-curl
+
+ENV _JAVA_OPTIONS='-Dsun.java2d.opengl=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false'
+
+# Keep apt lists so apt install works instantly — refresh in background on startup
 RUN printf '#!/bin/bash\\napt-get update -qq &>/dev/null &\\nexec "$@"\\n' > /usr/local/bin/entrypoint.sh \\
     && chmod +x /usr/local/bin/entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+RUN mkdir -p /usr/share/novnc && \\
+    ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html 2>/dev/null || true
+
+# --- GUI Launch & Tool Wrappers ---
+RUN printf '#!/bin/bash\\n\\
+echo "[gui-launch] Initializing workstation environment for $@..."\\n\\
+export DISPLAY=:1\\n\\
+export _JAVA_OPTIONS="-Dsun.java2d.opengl=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false"\\n\\
+\\n\\
+# Shared display check and cleanup\\n\\
+if ! xset q &>/dev/null; then\\n\\
+  echo "[gui-launch] Xvfb not running. Cleaning locks and starting..."\\n\\
+  rm -f /tmp/.X1-lock /tmp/.X11-unix/X1\\n\\
+  Xvfb :1 -screen 0 1280x720x24 -ac +extension GLX +render -noreset \u0026\\n\\
+  sleep 2\\n\\
+  echo "[gui-launch] Configuring window manager..."\\n\\
+  mkdir -p /root/.fluxbox\\n\\
+  echo "session.screen0.windowPlacement: CenterPlacement" > /root/.fluxbox/init\\n\\
+  echo "[gui-launch] Starting fluxbox window manager..."\\n\\
+  fluxbox \u0026\\n\\
+  sleep 1\\n\\
+  echo "[gui-launch] Starting x11vnc server (port 5900)..."\\n\\
+  x11vnc -display :1 -nopw -display :1 -xkb -forever -shared -bg -quiet\\n\\
+  echo "[gui-launch] Starting websockify bridge (port 6080)..."\\n\\
+  websockify --web=/usr/share/novnc 6080 localhost:5900 \u0026\\n\\
+  sleep 2\\n\\
+else\\n\\
+  echo "[gui-launch] GUI environment already active."\\n\\
+fi\\n\\
+\\n\\
+echo "[gui-launch] Launching application: $@"\\n\\
+# Persistence Maximizer: Loops for 30s to catch and maximize the window as it appears\\n\\
+(\\n\\
+  for i in {1..30}; do\\n\\
+    wmctrl -r "$1" -b add,maximized_vert,maximized_horz 2>/dev/null\\n\\
+    sleep 1\\n\\
+  done\\n\\
+) \u0026\\n\\
+exec "$@"\\n' > /usr/local/bin/gui-launch && chmod +x /usr/local/bin/gui-launch
+
+# Safe launch wrappers for workstation tools
+RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch firefox \\"\\$@\\"\\n" > /usr/local/bin/firefox-safe && chmod +x /usr/local/bin/firefox-safe
+RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch gedit \\"\\$@\\"\\n" > /usr/local/bin/gedit-safe && chmod +x /usr/local/bin/gedit-safe
+RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch gnome-calculator \\"\\$@\\"\\n" > /usr/local/bin/calc-safe && chmod +x /usr/local/bin/calc-safe
+
+# Update PATH to prioritize safe wrappers
+ENV PATH="/usr/local/bin:$PATH"
+
 WORKDIR /root
 CMD ["/bin/bash", "-i"]
 `,
@@ -201,24 +261,20 @@ guiProxy.on('error', (err, req, res) => {
 });
 
 // Maps /gui/:sessionId/* to localhost:<container_host_port>/*
-app.all('/gui/:sessionId/*', (req, res) => {
+app.all('/gui/:sessionId/*', async (req, res) => {
   const sess = sessions.get(req.params.sessionId);
-  if (!sess || !sess.guiPort) {
-    return res.status(404).json({ error: 'GUI session not found or not launched.' });
+  if (!sess) return res.status(404).json({ error: 'GUI session not found.' });
+  try {
+    const info = await sess.container.inspect();
+    const ip = info.NetworkSettings.IPAddress ||
+      Object.values(info.NetworkSettings.Networks)[0]?.IPAddress;
+    req.url = req.url.replace(/^\/gui\/[^\/]+/, '') || '/';
+    guiProxy.web(req, res, { target: `http://${ip}:6080`, changeOrigin: true }, (err) => {
+      if (!res.headersSent) res.status(502).json({ error: 'GUI not ready.' });
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  // Rewrite URL for the proxy target (strip /gui/:sessionId)
-  req.url = req.url.replace(/^\/gui\/[^\/]+/, '');
-  if (!req.url || req.url === '') req.url = '/';
-
-  guiProxy.web(req, res, {
-    target: `http://localhost:${sess.guiPort}`,
-    changeOrigin: true,
-  }, (err) => {
-    if (!res.headersSent) {
-      res.status(502).json({ error: 'GUI is not ready yet.' });
-    }
-  });
 });
 
 const wss    = new WebSocket.Server({ noServer: true });
@@ -234,14 +290,16 @@ server.on('upgrade', (req, socket, head) => {
   if (pathname.startsWith('/gui/')) {
     const sessionId = pathname.split('/')[2];
     const sess = sessions.get(sessionId);
-    if (sess && sess.guiPort) {
-      req.url = req.url.replace(/^\/gui\/[^\/]+/, '');
-      if (!req.url || req.url === '') req.url = '/';
-      
-      guiProxy.ws(req, socket, head, {
-        target: `ws://localhost:${sess.guiPort}`,
-        changeOrigin: true
-      });
+    if (sess) {
+      sess.container.inspect().then(info => {
+        const ip = info.NetworkSettings.IPAddress ||
+          Object.values(info.NetworkSettings.Networks)[0]?.IPAddress;
+        req.url = req.url.replace(/^\/gui\/[^\/]+/, '') || '/';
+        guiProxy.ws(req, socket, head, {
+          target: `ws://${ip}:6080`,
+          changeOrigin: true
+        });
+      }).catch(() => socket.destroy());
       return;
     } else {
       socket.destroy();
@@ -534,14 +592,14 @@ wss.on("connection", (ws) => {
             Labels:      { 'sheller': 'true', 'session': sessionId },
             Env:        cfg.env || ["TERM=xterm-256color", "HOME=/root", "DEBIAN_FRONTEND=noninteractive"],
             WorkingDir: cfg.workdir,
-            ExposedPorts: os === 'kali' ? { '6080/tcp': {} } : {},
+            ExposedPorts: (os === 'kali' || os === 'ubuntu') ? { '6080/tcp': {} } : {},
             HostConfig: {
               Memory:    512 * 1024 * 1024,
               CpuPeriod: 100000,
               CpuQuota:  100000,
               Binds:     [`${volName}:/root/workspace`],
               NetworkMode: "bridge",
-              PortBindings: os === 'kali' ? {
+              PortBindings: (os === 'kali' || os === 'ubuntu') ? {
                 '6080/tcp': [{ HostPort: '' }]
               } : {},
             },
@@ -559,7 +617,7 @@ wss.on("connection", (ws) => {
           await container.start();
           if (os === 'powershell') await container.resize({ h: 50, w: 220 });
 
-          // Get the assigned host port for GUI (Kali only)
+          // Get the assigned host port for GUI (Kali and Ubuntu)
           const containerInfo = await container.inspect();
           const guiPort = containerInfo.NetworkSettings.Ports?.['6080/tcp']?.[0]?.HostPort;
 
@@ -729,10 +787,12 @@ app.post('/api/gui/launch', async (req, res) => {
     const container = sess.container;
     
     // Determine the correct binary (prefer safe wrapper)
-    const workstationTools = ['wireshark', 'burpsuite', 'zaproxy', 'maltego', 'torbrowser-launcher', 'ghidra', 'armitage'];
+    const workstationTools = ['wireshark', 'burpsuite', 'zaproxy', 'maltego', 'torbrowser-launcher', 'ghidra', 'armitage', 'firefox', 'gedit', 'gnome-calculator'];
     let binaryName = guiApp;
     if (workstationTools.includes(guiApp)) {
-        binaryName = `${guiApp}-safe`;
+        // Handle aliases like 'calc' or 'gedit' vs wrapper names
+        if (guiApp === 'gnome-calculator') binaryName = 'calc-safe';
+        else binaryName = `${guiApp}-safe`;
     }
 
     console.log(`[gui/launch] Starting ${binaryName} for session ${sessionId}`);
@@ -803,6 +863,44 @@ app.post('/api/gui/close', async (req, res) => {
   } catch (err) {
     console.error(`[gui/close] ${sessionId}:`, err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/files/:sessionId', async (req, res) => {
+  const sess = sessions.get(req.params.sessionId);
+  if (!sess) return res.status(404).json({ files: [] });
+  try {
+    const exec = await sess.container.exec({
+      Cmd: ['bash', '-c', 'find /root /tmp -maxdepth 6 -type f \\( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" -o -name "*.gif" -o -name "*.pdf" -o -name "*.txt" -o -name "*.log" -o -name "*.zip" -o -name "*.mp4" -o -name "*.html" -o -name "*.pcap" \\) 2>/dev/null | head -100'],
+      AttachStdout: true, AttachStderr: false,
+    });
+    const stream = await exec.start({ hijack: true, stdin: false });
+    let output = '';
+    stream.on('data', d => output += d.toString());
+    await new Promise(r => stream.on('end', r));
+    const files = output.trim().split('\n').filter(f => f.trim() && !f.includes('workspace/.'));
+    res.json({ files });
+  } catch (err) {
+    res.status(500).json({ files: [] });
+  }
+});
+
+app.get('/api/download/:sessionId', async (req, res) => {
+  const filePath = req.query.path;
+  const sess = sessions.get(req.params.sessionId);
+  if (!sess || !filePath) return res.status(404).end();
+  try {
+    const exec = await sess.container.exec({
+      Cmd: ['cat', filePath],
+      AttachStdout: true, AttachStderr: false,
+    });
+    const stream = await exec.start({ hijack: true, stdin: false });
+    const filename = filePath.split('/').pop();
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    stream.pipe(res);
+  } catch (err) {
+    res.status(500).end();
   }
 });
 

@@ -236,6 +236,7 @@
         <div class="term-header-right">
           <span class="user-email" id="user-email-display" style="display:none"></span>
           <button id="vainko-hint-toggle" class="term-btn term-btn-vainko-hint" title="Toggle Vainko ghost hints" onclick="toggleVainkoHints()">✨ Vainko</button>
+          <button id="files-btn" class="term-btn" onclick="toggleFilesPanel()" title="Received Files">📁 Files</button>
           <button class="term-btn term-btn-danger" title="End session and go back" onclick="endSession()">End&#160;Session</button>
         </div>
       </header>
@@ -287,6 +288,17 @@
 
     <!-- ══ Vainko Chat Full-Screen Overlay ═══════════════════════════════ -->
     <div id="vainko-chat-overlay" class="vainko-chat-overlay hidden"></div>
+
+    <div id="files-panel" class="hidden" style="position:fixed;bottom:60px;right:20px;width:320px;max-height:400px;background:#0d1117;border:1px solid #30363d;border-radius:10px;z-index:200;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+      <div style="padding:12px 16px;border-bottom:1px solid #21262d;display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:#e6edf3;font-family:monospace;font-size:13px;font-weight:600;">📁 Received Files</span>
+        <div style="display:flex;gap:8px;">
+          <button onclick="refreshFiles()" style="background:none;border:none;color:#7c3aed;cursor:pointer;font-size:12px;">↻ Refresh</button>
+          <button onclick="toggleFilesPanel()" style="background:none;border:none;color:#666;cursor:pointer;font-size:16px;">✕</button>
+        </div>
+      </div>
+      <div id="files-list" style="overflow-y:auto;flex:1;padding:8px;"></div>
+    </div>
 
     <script src="app.js"></script>
   </body>

@@ -1671,7 +1671,10 @@ const GUI_APP_BINARY = {
   'tor': 'torbrowser-launcher',
   'torbrowser': 'torbrowser-launcher',
   'ghidra': 'ghidra',
-  'armitage': 'armitage'
+  'armitage': 'armitage',
+  'firefox': 'firefox',
+  'calc': 'gnome-calculator',
+  'calculator': 'gnome-calculator'
 };
 
 async function launchGuiApp(appName) {
@@ -1713,7 +1716,9 @@ async function launchGuiApp(appName) {
       if (loader) loader.classList.add('hidden');
       iframe.classList.remove('hidden');
       // Force autoconnect with explicit path to avoid proxy resolution errors
-      iframe.src = `/gui/${sessionId}/vnc.html?autoconnect=1&reconnect=1&reconnect_delay=2000&path=gui/${sessionId}/websockify&resize=scale&quality=8&compression=2`;
+      // Force autoconnect with explicit absolute path to avoid proxy/relative resolve issues in production
+      const vncPath = `gui/${sessionId}/websockify`;
+      iframe.src = `/gui/${sessionId}/vnc.html?autoconnect=1&reconnect=1&reconnect_delay=2000&path=${encodeURIComponent(vncPath)}&resize=scale&quality=8&compression=2`;
     }
   } catch (err) {
     console.error('GUI launch failed:', err);
@@ -1785,4 +1790,50 @@ function toggleFullscreen() {
   } else {
     document.exitFullscreen().catch(() => {});
   }
+}
+
+function toggleFilesPanel() {
+  const panel = document.getElementById('files-panel');
+  if (panel.classList.contains('hidden')) {
+    panel.classList.remove('hidden');
+    panel.style.display = 'flex';
+    refreshFiles();
+  } else {
+    panel.classList.add('hidden');
+    panel.style.display = 'none';
+  }
+}
+
+async function refreshFiles() {
+  if (!sessionId) return;
+  const list = document.getElementById('files-list');
+  list.innerHTML = '<div style="color:#555;font-family:monospace;font-size:12px;padding:8px;">Scanning container...</div>';
+  try {
+    const res = await fetch(`/api/files/${sessionId}`);
+    const data = await res.json();
+    if (!data.files || data.files.length === 0) {
+      list.innerHTML = '<div style="color:#555;font-family:monospace;font-size:12px;padding:8px;">No files found yet.<br>Files captured by tools will appear here.</div>';
+      return;
+    }
+    list.innerHTML = data.files.map(f => {
+      const name = f.split('/').pop();
+      const ext = name.split('.').pop().toLowerCase();
+      const icon = ['jpg','jpeg','png','gif'].includes(ext) ? '🖼️' : ['pdf'].includes(ext) ? '📄' : ['zip'].includes(ext) ? '📦' : ['mp4'].includes(ext) ? '🎥' : '📄';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #21262d;">
+        <span style="color:#e6edf3;font-family:monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;" title="${f}">${icon} ${name}</span>
+        <button onclick="downloadContainerFile('${f.replace(/'/g, "\\'")}')" style="background:#7c3aed;border:none;color:white;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap;">⬇ Save</button>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    list.innerHTML = '<div style="color:#ff4444;font-family:monospace;font-size:12px;padding:8px;">Error scanning files.</div>';
+  }
+}
+
+function downloadContainerFile(filePath) {
+  const a = document.createElement('a');
+  a.href = `/api/download/${sessionId}?path=${encodeURIComponent(filePath)}`;
+  a.download = filePath.split('/').pop();
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
