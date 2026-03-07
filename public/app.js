@@ -1691,10 +1691,15 @@ async function launchGuiApp(appName) {
     });
     const data = await res.json();
     if (data.url) {
-      const port = new URL(data.url).port;
-      iframe.src = `http://localhost:${port}/vnc.html?autoconnect=true&reconnect=true&resize=remote&quality=6&compression=2`;
-      document.getElementById('gui-loading')?.classList.add('hidden');
-      iframe.classList.remove('hidden');
+        const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        iframe.srcdoc = '';
+        if (isLocal) {
+          iframe.src = `${data.url}/vnc.html?autoconnect=true&reconnect=true&resize=remote&quality=6`;
+        } else {
+          iframe.src = `/novnc/${sessionId}/vnc.html?autoconnect=true&reconnect=true&resize=remote&quality=6&path=novnc/${sessionId}/websockify`;
+        }
+        document.getElementById('gui-loading')?.classList.add('hidden');
+        iframe.classList.remove('hidden');
     }
   } catch (err) {
     console.error('GUI launch failed:', err);
