@@ -1687,9 +1687,8 @@ async function launchGuiApp(appName) {
       body: JSON.stringify({ sessionId, app: binaryName })
     });
     const data = await res.json();
-    if (data.url) {
-      const port = new URL(data.url).port;
-      iframe.src = `http://localhost:${port}/vnc.html?autoconnect=true&reconnect=true&resize=remote&quality=6&compression=2`;
+    if (data.success) {
+      iframe.src = `/gui/${sessionId}/vnc.html?autoconnect=true&reconnect=true&resize=remote&quality=6&compression=2`;
     }
   } catch (err) {
     console.error('GUI launch failed:', err);

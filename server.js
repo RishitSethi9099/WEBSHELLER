@@ -132,12 +132,68 @@ const app    = express();
 const server = http.createServer(app);
 const wss    = new WebSocket.Server({ noServer: true });
 const docker = new Docker();
+const guiProxy = httpProxy.createProxyServer({ ws: true });
+
+// Proxy error handling to prevent server crashes
+guiProxy.on('error', (err, req, res) => {
+  console.error('[guiProxy] error:', err.message);
+  if (res && !res.headersSent && typeof res.status === 'function') {
+    res.status(502).json({ error: 'GUI proxy error. The container might still be booting.' });
+  }
+});
 
 app.use(express.json());
+
+// ─── Proxy for GUI access (noVNC) ───────────────────────────────────────────
+// Maps /gui/:sessionId/* to localhost:<container_host_port>/*
+app.all('/gui/:sessionId/*', (req, res) => {
+  const sess = sessions.get(req.params.sessionId);
+  if (!sess || !sess.guiPort) {
+    return res.status(404).json({ error: 'GUI session not found or not launched.' });
+  }
+
+  // Rewrite URL for the proxy target (strip /gui/:sessionId)
+  // E.g. /gui/xyz/vnc.html -> /vnc.html
+  req.url = req.url.replace(/^\/gui\/[^\/]+/, '');
+  if (!req.url || req.url === '') req.url = '/';
+
+  guiProxy.web(req, res, {
+    target: `http://localhost:${sess.guiPort}`,
+    changeOrigin: true,
+  }, (err) => {
+    console.error(`[gui/proxy] HTTP Error:`, err.message);
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'GUI is not ready yet. Please wait.' });
+    }
+  });
+});
 
 app.use(express.static(path.join(__dirname, "public")));
 
 server.on('upgrade', (req, socket, head) => {
+  const pathname = new URL(req.url, 'http://localhost').pathname;
+  
+  // Route /gui/:sessionId/* to the appropriate Docker container GUI port
+  if (pathname.startsWith('/gui/')) {
+    const sessionId = pathname.split('/')[2];
+    const sess = sessions.get(sessionId);
+    if (sess && sess.guiPort) {
+      // Rewrite URL for the proxy target (strip /gui/:sessionId)
+      req.url = req.url.replace(/^\/gui\/[^\/]+/, '');
+      if (!req.url || req.url === '') req.url = '/';
+      
+      guiProxy.ws(req, socket, head, {
+        target: `ws://localhost:${sess.guiPort}`,
+        changeOrigin: true
+      });
+      return;
+    } else {
+      socket.destroy();
+      return;
+    }
+  }
+
+  // Fallback to terminal WebSockets
   wss.handleUpgrade(req, socket, head, (ws) => {
     wss.emit('connection', ws, req);
   });
@@ -603,8 +659,6 @@ app.delete('/api/progress/:lessonId', (req, res) => {
 
 // ─── GUI forwarding (noVNC) ───────────────────────────────────────────────────
 
-const guiProxy = httpProxy.createProxyServer({ ws: true });
-
 // Launch a GUI app inside the container via Xvfb + x11vnc + noVNC
 app.post('/api/gui/launch', async (req, res) => {
   const { sessionId, app: guiApp } = req.body;
@@ -628,48 +682,9 @@ app.post('/api/gui/launch', async (req, res) => {
     // Wait for everything to boot
     await new Promise(r => setTimeout(r, 8000));
 
-    res.json({ url: `http://localhost:${sess.guiPort}` });
+    res.json({ success: true, sessionId });
   } catch (err) {
     console.error(`[gui/launch] ${sessionId}:`, err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Proxy requests to the container's noVNC (port 6080)
-app.get('/api/gui/proxy/:sessionId/*', async (req, res) => {
-  const sess = sessions.get(req.params.sessionId);
-  if (!sess) return res.status(404).json({ error: 'Session not found' });
-
-  try {
-    // Check if websockify is actually running inside the container
-    const checkExec = await sess.container.exec({
-      Cmd: ['bash', '-c', 'pgrep -f websockify'],
-      AttachStdout: true, AttachStderr: true,
-    });
-    const checkStream = await checkExec.start({ hijack: true, stdin: false });
-    let output = '';
-    checkStream.on('data', (chunk) => { output += chunk.toString(); });
-    await new Promise(r => checkStream.on('end', r));
-    if (!output.trim()) {
-      return res.status(503).json({ error: 'GUI is not running. Launch a GUI app first.' });
-    }
-
-    const info = await sess.container.inspect();
-    const containerIp = info.NetworkSettings.IPAddress ||
-      (info.NetworkSettings.Networks && Object.values(info.NetworkSettings.Networks)[0]?.IPAddress);
-    if (!containerIp) return res.status(500).json({ error: 'Cannot determine container IP' });
-
-    guiProxy.web(req, res, {
-      target: `http://${containerIp}:6080`,
-      changeOrigin: true,
-    }, (err) => {
-      console.error(`[gui/proxy] error:`, err.message);
-      if (!res.headersSent) {
-        res.status(502).json({ error: 'Proxy error: GUI may not be ready yet.' });
-      }
-    });
-  } catch (err) {
-    console.error(`[gui/proxy] ${req.params.sessionId}:`, err.message);
     res.status(500).json({ error: err.message });
   }
 });
