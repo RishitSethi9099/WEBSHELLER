@@ -1717,7 +1717,7 @@ async function launchGuiApp(appName) {
       iframe.classList.remove('hidden');
       // Force autoconnect with explicit path to avoid proxy resolution errors
       // Force autoconnect with explicit absolute path to avoid proxy/relative resolve issues in production
-      const vncPath = `gui/${sessionId}/websockify`;
+      const vncPath = `/gui/${sessionId}/websockify`;
       iframe.src = `/gui/${sessionId}/vnc.html?autoconnect=1&reconnect=1&reconnect_delay=2000&path=${encodeURIComponent(vncPath)}&resize=scale&quality=8&compression=2`;
     }
   } catch (err) {

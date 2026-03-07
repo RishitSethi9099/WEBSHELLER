@@ -292,14 +292,25 @@ server.on('upgrade', (req, socket, head) => {
     const sess = sessions.get(sessionId);
     if (sess) {
       sess.container.inspect().then(info => {
-        const ip = info.NetworkSettings.IPAddress ||
-          Object.values(info.NetworkSettings.Networks)[0]?.IPAddress;
-        req.url = req.url.replace(/^\/gui\/[^\/]+/, '') || '/';
+        const ip = info.NetworkSettings.IPAddress || 
+                   info.NetworkSettings.Networks?.[Object.keys(info.NetworkSettings.Networks)[0]]?.IPAddress ||
+                   'localhost'; // Fallback to host map if IP discovery fails
+        
+        // Strip the /gui/:sessionId prefix for the proxy
+        // Important: Many websockify versions prefer the root path for handshakes
+        // Strip everything to the root path for the destination websockify server
+        // This is the most compatible way to handle handshakes through multiple proxies
+        req.url = '/';
+        
         guiProxy.ws(req, socket, head, {
           target: `ws://${ip}:6080`,
-          changeOrigin: true
+          changeOrigin: true,
+          ws: true
         });
-      }).catch(() => socket.destroy());
+      }).catch(err => {
+        console.error('[gui-ws-upgrade] error:', err.message);
+        socket.destroy();
+      });
       return;
     } else {
       socket.destroy();
