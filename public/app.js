@@ -400,13 +400,30 @@ function openTerminalPage(os, osName, sid, isReconnect) {
     fitAddon.fit();
 
     term.onData((data) => {
+      // Ctrl+C: close GUI panel if open (still sends ^C to terminal below)
+      if (data === '\x03') {
+        const panel = document.getElementById('gui-panel');
+        if (panel && !panel.classList.contains('hidden')) {
+          closeGuiPanel();
+        }
+      }
+      // Intercept Enter key to check for GUI app commands
+      if (data === '\r' || data === '\n') {
+        const guiMatch = checkForGuiApp(inputBuffer);
+        if (guiMatch) {
+          // Don't send the Enter to the container — launch GUI instead
+          term.writeln('\r\nLaunching ' + guiMatch + ' in GUI panel...');
+          launchGuiApp(guiMatch);
+          inputBuffer = '';
+          if (vainkoHintsEnabled) dismissGhostHint();
+          return;
+        }
+      }
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'input', sessionId, data: btoa(data) }));
       }
-      // Ghost hint tracking
-      if (vainkoHintsEnabled) {
-        handleTerminalInput(data);
-      }
+      // Track input buffer for ghost hints
+      handleTerminalInput(data);
     });
 
     // Custom key handler for ghost hint Tab/Escape + Ctrl+C/V copy-paste
@@ -498,7 +515,24 @@ function closeVainkoChat() {
   overlay.innerHTML = '';
 }
 
-function loadVainkoChat() {
+async function loadVainkoProgress() {
+  try {
+    const res = await fetch('/api/progress', {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    // Rebuild _vainkoCompleted from saved progress
+    window._vainkoCompleted = {};
+    for (const row of data.progress) {
+      if (!window._vainkoCompleted[row.lesson_id]) {
+        window._vainkoCompleted[row.lesson_id] = new Set();
+      }
+      window._vainkoCompleted[row.lesson_id].add(row.step_index);
+    }
+  } catch (_) {}
+}
+
+async function loadVainkoChat() {
   const overlay = document.getElementById('vainko-chat-overlay');
   const skill = skillLevel || 'beginner';
   const skillLabel = skill === 'experienced' ? 'Experienced' : skill === 'intermediate' ? 'Intermediate' : 'Beginner';
@@ -851,19 +885,27 @@ function loadVainkoChat() {
   window._vainkoCompleted = {};
   window._vainkoStepPhases = {};
 
+  // Load saved progress from server
+  await loadVainkoProgress();
+
   // Build lesson cards HTML
   let lessonCardsHtml = '';
   for (const [id, lesson] of Object.entries(LESSONS)) {
     const diffLabel = lesson.difficulty === 'beginner' ? 'Beginner' : 'Intermediate';
     const lockedClass = '';
     const onclick = 'onclick="selectVainkoLesson(\'' + id + '\')"';
+    const completedCount = window._vainkoCompleted[id]?.size || 0;
+    const totalSteps = lesson.steps ? lesson.steps.length : 5;
+    const progressText = completedCount + '/' + totalSteps + ' steps';
     lessonCardsHtml += '<div class="v-lesson-card' + lockedClass + '" data-lesson-id="' + id + '" ' + onclick + '>' +
       '<div class="v-lesson-card-title">' + lesson.title + '</div>' +
       '<div class="v-lesson-card-desc">' + lesson.desc + '</div>' +
       '<div class="v-lesson-card-meta">' +
         '<span class="v-diff-pill ' + lesson.difficulty + '">' + diffLabel + '</span>' +
         '<span class="v-lesson-card-time">' + lesson.time + '</span>' +
-      '</div></div>';
+      '</div>' +
+      '<div class="v-lesson-card-progress" style="font-size:0.72rem;color:#7c3aed;margin-top:6px;">' + progressText + '</div>' +
+    '</div>';
   }
 
   overlay.innerHTML = '<aside class="v-sidebar">' +
@@ -919,11 +961,19 @@ function selectVainkoLesson(id) {
   if (!LESSONS || !LESSONS[id] || !LESSONS[id].available) return;
   
   window._vainkoActiveLesson = id;
-  window._vainkoActiveStep = 0;
-  window._vainkoCurrentPhase = 1;
-  
   if (!window._vainkoCompleted[id]) window._vainkoCompleted[id] = new Set();
   if (!window._vainkoStepPhases[id]) window._vainkoStepPhases[id] = {};
+
+  // Resume at first uncompleted step
+  const completed = window._vainkoCompleted[id];
+  const totalSteps = LESSONS[id].steps.length;
+  let resumeStep = 0;
+  for (let i = 0; i < totalSteps; i++) {
+    if (!completed.has(i)) { resumeStep = i; break; }
+    if (i === totalSteps - 1) resumeStep = i; // all done
+  }
+  window._vainkoActiveStep = resumeStep;
+  window._vainkoCurrentPhase = 1;
 
   document.querySelectorAll('.v-lesson-card').forEach(c => c.classList.remove('active'));
   const card = document.querySelector('.v-lesson-card[data-lesson-id="' + id + '"]');
@@ -1203,6 +1253,13 @@ function completeVainkoStep() {
   if (!window._vainkoCompleted[id]) window._vainkoCompleted[id] = new Set();
   window._vainkoCompleted[id].add(window._vainkoActiveStep);
 
+  // Save progress to server
+  fetch('/api/progress', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+    body: JSON.stringify({ lessonId: id, stepIndex: window._vainkoActiveStep })
+  }).catch(() => {});
+
   const step = lesson.steps[window._vainkoActiveStep];
   sendVainkoToApiSilent('User just completed step ' + (window._vainkoActiveStep + 1) + ': "' + step.title + '" in the ' + lesson.title + ' lesson. Share one brief insight about what they just learned.');
 
@@ -1215,6 +1272,17 @@ function completeVainkoStep() {
   }
 
   renderVainkoLesson();
+
+  // Update sidebar progress indicator for this lesson
+  const card = document.querySelector('.v-lesson-card[data-lesson-id="' + id + '"]');
+  if (card) {
+    const progEl = card.querySelector('.v-lesson-card-progress');
+    if (progEl) {
+      const completed = window._vainkoCompleted[id]?.size || 0;
+      const total = lesson.steps ? lesson.steps.length : 5;
+      progEl.textContent = completed + '/' + total + ' steps';
+    }
+  }
 }
 
 function appendVainkoMessage(role, content) {
@@ -1319,19 +1387,23 @@ function updateHintToggleUI() {
 function handleTerminalInput(data) {
   if (data === '\r' || data === '\n') {
     inputBuffer = '';
-    dismissGhostHint();
+    if (vainkoHintsEnabled) dismissGhostHint();
     return;
   }
   if (data === '\x7f' || data === '\b') {
     inputBuffer = inputBuffer.slice(0, -1);
-    dismissGhostHint();
-    tryLocalHintOrDebounce();
+    if (vainkoHintsEnabled) {
+      dismissGhostHint();
+      tryLocalHintOrDebounce();
+    }
     return;
   }
   if (data.charCodeAt(0) < 32 && data !== '\t') return;
   inputBuffer += data;
-  dismissGhostHint();
-  tryLocalHintOrDebounce();
+  if (vainkoHintsEnabled) {
+    dismissGhostHint();
+    tryLocalHintOrDebounce();
+  }
 }
 
 function tryLocalHintOrDebounce() {
@@ -1579,6 +1651,88 @@ async function submitAskVainko() {
 
 function insertGeneratedCmd(cmd) {
   insertVainkoCmd(cmd);
+}
+
+// ─── GUI Panel ────────────────────────────────────────────────────────────────
+
+const GUI_APPS = ['wireshark', 'burpsuite', 'burp', 'maltego', 'zenmap', 'gedit', 'mousepad'];
+
+// Map aliases to actual binary names
+const GUI_APP_BINARY = {
+  'burp': 'burpsuite',
+  'burpsuite': 'burpsuite',
+  'wireshark': 'wireshark',
+  'maltego': 'maltego',
+  'zenmap': 'zenmap',
+  'gedit': 'gedit',
+  'mousepad': 'mousepad',
+};
+
+async function launchGuiApp(appName) {
+  const binaryName = GUI_APP_BINARY[appName] || appName;
+  const panel = document.getElementById('gui-panel');
+  const iframe = document.getElementById('gui-iframe');
+  const title = document.getElementById('gui-panel-title');
+
+  title.textContent = binaryName;
+  iframe.src = '';
+  iframe.classList.add('hidden');
+  document.getElementById('gui-loading')?.classList.remove('hidden');
+  
+  panel.classList.remove('hidden');
+  document.getElementById('terminal-page')?.classList.add('gui-open');
+  if (fitAddon) fitAddon.fit();
+
+  try {
+    const res = await fetch('/api/gui/launch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, app: binaryName })
+    });
+    const data = await res.json();
+    if (data.url) {
+      const port = new URL(data.url).port;
+      iframe.src = `http://localhost:${port}/vnc.html?autoconnect=true&reconnect=true&resize=remote&quality=6&compression=2`;
+      document.getElementById('gui-loading')?.classList.add('hidden');
+      iframe.classList.remove('hidden');
+    }
+  } catch (err) {
+    console.error('GUI launch failed:', err);
+    document.getElementById('gui-loading')?.classList.add('hidden');
+    // Optionally restore terminal view
+    panel.classList.add('hidden');
+    document.getElementById('terminal-page')?.classList.remove('gui-open');
+    if (fitAddon) fitAddon.fit();
+  }
+}
+
+function closeGuiPanel() {
+  const panel = document.getElementById('gui-panel');
+  panel.classList.add('hidden');
+  document.getElementById('gui-loading')?.classList.add('hidden');
+  document.getElementById('terminal-page')?.classList.remove('gui-open');
+  document.getElementById('gui-iframe').src = '';
+  if (fitAddon) fitAddon.fit();
+  fetch('/api/gui/close', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId })
+  }).catch(() => {});
+}
+
+function resizeGuiPanel() {
+  const panel = document.getElementById('gui-panel');
+  const isFullscreen = panel.style.width === '80%';
+  panel.style.width = isFullscreen ? '50%' : '80%';
+  const termMount = document.getElementById('xterm-mount');
+  if (termMount) termMount.style.width = isFullscreen ? '50%' : '20%';
+  if (fitAddon) fitAddon.fit();
+}
+
+function checkForGuiApp(input) {
+  const cmd = input.trim().toLowerCase();
+  const matched = GUI_APPS.find(app => cmd === app || cmd.startsWith(app + ' '));
+  return matched || null;
 }
 
 // ─── Actions ──────────────────────────────────────────────────────────────────

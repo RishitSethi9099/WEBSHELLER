@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sheller — Admin Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: #0a0a0a;
+      color: #f0f0f0;
+      font-family: 'Inter', -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    /* ── Access Denied ───────────────────── */
+    .access-denied {
+      display: none;
+      height: 100vh;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .access-denied.active { display: flex; }
+    .access-denied h1 { font-size: 2rem; color: #f85149; }
+    .access-denied p { color: #666; font-size: 0.9rem; }
+    .access-denied a { color: #7c3aed; text-decoration: none; }
+    .access-denied a:hover { text-decoration: underline; }
+
+    /* ── Layout ──────────────────────────── */
+    .admin-layout {
+      display: none;
+      height: 100vh;
+      flex-direction: row;
+    }
+    .admin-layout.active { display: flex; }
+
+    /* ── Sidebar ─────────────────────────── */
+    .sidebar {
+      width: 240px;
+      background: #0d0d0d;
+      border-right: 1px solid #1e1e1e;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .sidebar-logo {
+      padding: 24px 20px;
+      border-bottom: 1px solid #1e1e1e;
+    }
+    .sidebar-logo h2 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem;
+      color: #7c3aed;
+      font-weight: 600;
+    }
+    .sidebar-logo span {
+      font-size: 0.7rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      display: block;
+      margin-top: 4px;
+    }
+    .sidebar-nav {
+      flex: 1;
+      padding: 12px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      color: #888;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: none;
+      text-align: left;
+      font-family: inherit;
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
+    }
+    .nav-link:hover { color: #f0f0f0; background: rgba(255,255,255,0.03); }
+    .nav-link.active {
+      color: #f0f0f0;
+      background: rgba(124, 58, 237, 0.08);
+      border-left-color: #7c3aed;
+    }
+    .nav-link .nav-icon { font-size: 1.1rem; width: 24px; text-align: center; }
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid #1e1e1e;
+    }
+    .sidebar-footer a {
+      color: #666;
+      font-size: 0.78rem;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.15s;
+    }
+    .sidebar-footer a:hover { color: #f0f0f0; }
+
+    /* ── Main Content ────────────────────── */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px 40px;
+      scrollbar-width: thin;
+      scrollbar-color: #1e1e1e transparent;
+    }
+    .main-content::-webkit-scrollbar { width: 6px; }
+    .main-content::-webkit-scrollbar-thumb { background: #1e1e1e; border-radius: 3px; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .page-header {
+      margin-bottom: 28px;
+    }
+    .page-header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #f0f0f0;
+    }
+    .page-header p {
+      color: #666;
+      font-size: 0.85rem;
+      margin-top: 6px;
+    }
+
+    /* ── Stat Cards ──────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: #111111;
+      border: 1px solid #1e1e1e;
+      border-radius: 12px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .stat-card:hover {
+      border-color: #2a2a2a;
+      transform: translateY(-2px);
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #7c3aed, #a855f7);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .stat-card:hover::before { opacity: 1; }
+    .stat-card-icon {
+      font-size: 1.5rem;
+      margin-bottom: 12px;
+    }
+    .stat-card-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #f0f0f0;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .stat-card-label {
+      font-size: 0.78rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* ── Tables ──────────────────────────── */
+    .table-wrap {
+      background: #111111;
+      border: 1px solid #1e1e1e;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    thead th {
+      padding: 14px 20px;
+      text-align: left;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      border-bottom: 1px solid #1e1e1e;
+      background: #0d0d0d;
+    }
+    tbody td {
+      padding: 14px 20px;
+      font-size: 0.85rem;
+      color: #ccc;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr { transition: background 0.12s; }
+    tbody tr:hover { background: rgba(124, 58, 237, 0.04); }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: #888;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .badge-kali { background: rgba(225,29,72,0.15); color: #e11d48; }
+    .badge-ubuntu { background: rgba(249,115,22,0.15); color: #f97316; }
+    .badge-powershell { background: rgba(59,130,246,0.15); color: #3b82f6; }
+
+    .btn-kill {
+      padding: 5px 14px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: 1px solid rgba(248,81,73,0.3);
+      background: rgba(248,81,73,0.08);
+      color: #f85149;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .btn-kill:hover {
+      background: rgba(248,81,73,0.2);
+      border-color: #f85149;
+    }
+    .btn-kill:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .empty-state {
+      padding: 48px 20px;
+      text-align: center;
+      color: #444;
+      font-size: 0.9rem;
+    }
+
+    /* ── Loading state ───────────────────── */
+    .loading-shimmer {
+      background: linear-gradient(90deg, #111 25%, #1a1a1a 50%, #111 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px;
+      height: 16px;
+      width: 80px;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* ── Live indicator ──────────────────── */
+    .live-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      margin-right: 8px;
+      animation: livePulse 2s ease-in-out infinite;
+    }
+    @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .refresh-info {
+      font-size: 0.72rem;
+      color: #444;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Access Denied -->
+  <div id="access-denied" class="access-denied">
+    <h1>🔒 Access Denied</h1>
+    <p>You do not have permission to access this page.</p>
+    <a href="/">← Back to Sheller</a>
+  </div>
+
+  <!-- Admin Layout -->
+  <div id="admin-layout" class="admin-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <h2>[sheller]</h2>
+        <span>Admin Panel</span>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-link active" onclick="showPage('dashboard')">
+          <span class="nav-icon">📊</span> Dashboard
+        </button>
+        <button class="nav-link" onclick="showPage('users')">
+          <span class="nav-icon">👤</span> Users
+        </button>
+        <button class="nav-link" onclick="showPage('sessions')">
+          <span class="nav-icon">🖥️</span> Active Sessions
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="/">← Back to Sheller</a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+
+      <!-- Dashboard Page -->
+      <div id="page-dashboard" class="page active">
+        <div class="page-header">
+          <h1>Dashboard</h1>
+          <p>Overview of your Sheller instance</p>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-card-icon">👤</div>
+            <div class="stat-card-value" id="stat-users">—</div>
+            <div class="stat-card-label">Total Users</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-icon">🖥️</div>
+            <div class="stat-card-value" id="stat-sessions">—</div>
+            <div class="stat-card-label">Active Sessions</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-icon">📅</div>
+            <div class="stat-card-value" id="stat-today">—</div>
+            <div class="stat-card-label">Sessions Today</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-icon">🏆</div>
+            <div class="stat-card-value" id="stat-popular-os">—</div>
+            <div class="stat-card-label">Most Popular OS</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Users Page -->
+      <div id="page-users" class="page">
+        <div class="page-header">
+          <h1>Users</h1>
+          <p>All registered accounts</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Signup Date</th>
+                <th>Last Active</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr><td colspan="4" class="empty-state">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Sessions Page -->
+      <div id="page-sessions" class="page">
+        <div class="page-header">
+          <h1><span class="live-dot"></span>Active Sessions</h1>
+          <p>Live view — auto-refreshes every 5 seconds</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Session ID</th>
+                <th>OS</th>
+                <th>Container ID</th>
+                <th>Last Activity</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="sessions-tbody">
+              <tr><td colspan="5" class="empty-state">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="refresh-info">
+          <span class="live-dot"></span> Auto-refreshing every 5 seconds
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+<script>
+const TOKEN_KEY = 'sheller_token';
+const token = localStorage.getItem(TOKEN_KEY);
+let sessionsInterval = null;
+
+// ─── Auth Check ──────────────────────────────────────────────────
+async function checkAdmin() {
+  if (!token) { showDenied(); return; }
+  try {
+    const res = await fetch('/api/admin/check', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) { showDenied(); return; }
+    document.getElementById('admin-layout').classList.add('active');
+    loadDashboard();
+    loadUsers();
+    loadSessions();
+    sessionsInterval = setInterval(loadSessions, 5000);
+  } catch { showDenied(); }
+}
+
+function showDenied() {
+  document.getElementById('access-denied').classList.add('active');
+}
+
+// ─── Navigation ──────────────────────────────────────────────────
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+}
+
+// ─── Dashboard ───────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const [usersRes, sessionsRes] = await Promise.all([
+      fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}` } }),
+      fetch('/api/admin/sessions', { headers: { 'Authorization': `Bearer ${token}` } })
+    ]);
+    const usersData = await usersRes.json();
+    const sessionsData = await sessionsRes.json();
+
+    const users = usersData.users || [];
+    const sessions = sessionsData.sessions || [];
+
+    document.getElementById('stat-users').textContent = users.length;
+    document.getElementById('stat-sessions').textContent = sessions.length;
+
+    // Sessions today (check lastActivity timestamp)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayCount = sessions.filter(s => s.lastActivity && s.lastActivity > todayStart.getTime()).length;
+    document.getElementById('stat-today').textContent = todayCount;
+
+    // Most popular OS
+    if (sessions.length > 0) {
+      const osCounts = {};
+      sessions.forEach(s => { osCounts[s.os] = (osCounts[s.os] || 0) + 1; });
+      const topOS = Object.entries(osCounts).sort((a, b) => b[1] - a[1])[0];
+      document.getElementById('stat-popular-os').textContent = topOS ? topOS[0] : '—';
+    } else {
+      document.getElementById('stat-popular-os').textContent = '—';
+    }
+  } catch (err) {
+    console.error('Dashboard load failed:', err);
+  }
+}
+
+// ─── Users ───────────────────────────────────────────────────────
+async function loadUsers() {
+  try {
+    const res = await fetch('/api/admin/users', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const users = data.users || [];
+    const tbody = document.getElementById('users-tbody');
+
+    if (users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No users registered yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = users.map(u => `
+      <tr>
+        <td><strong>${esc(u.username)}</strong></td>
+        <td class="mono">${esc(u.email)}</td>
+        <td>${formatDate(u.created_at)}</td>
+        <td class="mono" style="color:#666">—</td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error('Users load failed:', err);
+  }
+}
+
+// ─── Sessions ────────────────────────────────────────────────────
+async function loadSessions() {
+  try {
+    const res = await fetch('/api/admin/sessions', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    const sessions = data.sessions || [];
+    const tbody = document.getElementById('sessions-tbody');
+
+    if (sessions.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No active sessions.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = sessions.map(s => `
+      <tr>
+        <td class="mono">${esc(s.sessionId.slice(0, 8))}…</td>
+        <td><span class="badge badge-${s.os}">${esc(s.os)}</span></td>
+        <td class="mono">${esc(s.containerId.slice(0, 8))}…</td>
+        <td>${timeAgo(s.lastActivity)}</td>
+        <td>
+          <button class="btn-kill" onclick="killSession('${esc(s.sessionId)}', this)">Kill</button>
+        </td>
+      </tr>
+    `).join('');
+
+    // Also update dashboard count
+    document.getElementById('stat-sessions').textContent = sessions.length;
+  } catch (err) {
+    console.error('Sessions load failed:', err);
+  }
+}
+
+async function killSession(id, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Killing…';
+  try {
+    await fetch(`/api/admin/sessions/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    loadSessions();
+    loadDashboard();
+  } catch (err) {
+    console.error('Kill failed:', err);
+    btn.disabled = false;
+    btn.textContent = 'Kill';
+  }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr + 'Z');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function timeAgo(ts) {
+  if (!ts) return '—';
+  const diff = Date.now() - ts;
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+  if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+  return Math.floor(diff / 86400000) + 'd ago';
+}
+
+// ─── Boot ────────────────────────────────────────────────────────
+checkAdmin();
+</script>
+
+</body>
+</html>

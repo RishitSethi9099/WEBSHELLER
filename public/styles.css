@@ -1858,6 +1858,76 @@ body::before {
   100% { transform: scale(1); opacity: 1; }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   GUI Panel (noVNC)
+   ═══════════════════════════════════════════════════════════ */
+.gui-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  background: #0d1117;
+  border-left: 1px solid #1e1e1e;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  transition: width 0.2s ease;
+}
+.gui-panel.hidden { display: none; }
+.gui-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #111111;
+  border-bottom: 1px solid #1e1e1e;
+  font-size: 13px;
+  color: #f0f0f0;
+}
+.gui-panel-controls button {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 14px;
+}
+.gui-panel-controls button:hover { color: #f0f0f0; }
+#gui-iframe {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.gui-loading-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #0d1117;
+  color: #888;
+  gap: 16px;
+  font-size: 14px;
+}
+.gui-loader-spinner {
+  width: 42px;
+  height: 42px;
+  border: 3px solid rgba(124, 58, 237, 0.1);
+  border-top-color: #7c3aed;
+  border-radius: 50%;
+  animation: guiSpin 1s linear infinite;
+}
+@keyframes guiSpin {
+  to { transform: rotate(360deg); }
+}
+/* Shrink terminal when GUI panel is open */
+#terminal-page.gui-open #xterm-mount {
+  width: 50%;
+}
+
 /* ─── Responsive tweaks for new components ────────────────── */
 @media (max-width: 768px) {
   .ask-vainko-popup { width: calc(100vw - 32px); right: 16px; bottom: 72px; }

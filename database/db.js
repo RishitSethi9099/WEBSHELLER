@@ -27,6 +27,15 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS lesson_progress (
+    user_id     INTEGER NOT NULL,
+    lesson_id   TEXT    NOT NULL,
+    step_index  INTEGER NOT NULL,
+    PRIMARY KEY (user_id, lesson_id, step_index)
+  );
+`);
+
 console.log('[db] SQLite database ready at', DB_PATH);
 
 module.exports = db;

@@ -21,6 +21,7 @@ const path    = require("path");
 const { Readable } = require("stream");
 const { v4: uuidv4 } = require("uuid");
 const crypto = require("crypto");
+const httpProxy = require('http-proxy');
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -39,11 +40,16 @@ ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root
 RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
     bash coreutils procps iproute2 iputils-ping net-tools \\
     curl wget dnsutils sudo python3 vim nano whois \\
-    nmap netcat-openbsd less file unzip git openssh-client
+    nmap netcat-openbsd less file unzip git openssh-client \\
+    xvfb x11vnc novnc websockify xterm fluxbox
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y wireshark
 # Keep apt lists so apt install works instantly — refresh in background on startup
 RUN printf '#!/bin/bash\\napt-get update -qq &>/dev/null &\\nexec "$@"\\n' > /usr/local/bin/entrypoint.sh \\
     && chmod +x /usr/local/bin/entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+RUN mkdir -p /usr/share/novnc && \\
+    ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html 2>/dev/null || true
+RUN printf '#!/bin/bash\\nAPP=$1\\nexport DISPLAY=:99\\nXvfb :99 -screen 0 1600x900x24 -ac &\\nsleep 2\\nfluxbox &\\nsleep 1\\n$APP &\\nsleep 1\\nx11vnc -display :99 -nopw -listen 0.0.0.0 -xkb -forever -bg -quiet\\nwebsockify --web=/usr/share/novnc 6080 localhost:5900 &\\n' > /usr/local/bin/gui-launch && chmod +x /usr/local/bin/gui-launch
 WORKDIR /root
 CMD ["/bin/bash", "-i"]
 `,
@@ -147,6 +153,47 @@ app.get("/api/config", (_req, res) => {
   res.json({ authMode: "local" });
 });
 
+// --- Admin middleware & routes ------------------------------------------------
+
+function requireAdmin(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token' });
+  try {
+    const decoded = authRoutes.verifyToken(token);
+    const db = require('./database/db');
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.id);
+    const adminEmail = process.env.ADMIN_EMAIL || '';
+    if (!user || user.email !== adminEmail) return res.status(403).json({ error: 'Not admin' });
+    req.user = user;
+    next();
+  } catch { res.status(401).json({ error: 'Invalid token' }); }
+}
+
+app.get('/api/admin/check', requireAdmin, (req, res) => res.json({ ok: true }));
+
+app.get('/api/admin/users', requireAdmin, (req, res) => {
+  const db = require('./database/db');
+  const users = db.prepare('SELECT id, username, email, created_at FROM users ORDER BY created_at DESC').all();
+  res.json({ users });
+});
+
+app.get('/api/admin/sessions', requireAdmin, (req, res) => {
+  const activeSessions = [];
+  for (const [id, sess] of sessions.entries()) {
+    activeSessions.push({
+      sessionId: id,
+      os: sess.os,
+      containerId: sess.container.id,
+      lastActivity: sess.lastActivity,
+    });
+  }
+  res.json({ sessions: activeSessions });
+});
+
+app.delete('/api/admin/sessions/:id', requireAdmin, async (req, res) => {
+  await destroySession(req.params.id);
+  res.json({ ok: true });
+});
 
 // ─── Session store ───────────────────────────────────────────────────────────
 // sessionId → { container, stream, ws, os, timer, lastActivity }
@@ -375,12 +422,16 @@ wss.on("connection", (ws) => {
             Labels:      { 'sheller': 'true', 'session': sessionId },
             Env:        cfg.env || ["TERM=xterm-256color", "HOME=/root", "DEBIAN_FRONTEND=noninteractive"],
             WorkingDir: cfg.workdir,
+            ExposedPorts: os === 'kali' ? { '6080/tcp': {} } : {},
             HostConfig: {
               Memory:    512 * 1024 * 1024,
               CpuPeriod: 100000,
               CpuQuota:  100000,
               Binds:     [`${volName}:/root/workspace`],
               NetworkMode: "bridge",
+              PortBindings: os === 'kali' ? {
+                '6080/tcp': [{ HostPort: '' }]
+              } : {},
             },
           });
 
@@ -396,9 +447,13 @@ wss.on("connection", (ws) => {
           await container.start();
           if (os === 'powershell') await container.resize({ h: 50, w: 220 });
 
+          // Get the assigned host port for GUI (Kali only)
+          const containerInfo = await container.inspect();
+          const guiPort = containerInfo.NetworkSettings.Ports?.['6080/tcp']?.[0]?.HostPort;
+
           console.log(`[session] container started: ${sessionId} (${cfg.name})`);
 
-          const sessData = { container, stream, ws, os, lastActivity: Date.now(), timer: null, stripCount: 0 };
+          const sessData = { container, stream, ws, os, lastActivity: Date.now(), timer: null, stripCount: 0, guiPort };
           sessions.set(sessionId, sessData);
           resetInactivityTimer(sessionId);
 
@@ -499,6 +554,146 @@ app.get("/api/session/:id", (req, res) => {
     });
   } else {
     res.json({ active: false });
+  }
+});
+
+// ─── Lesson progress ─────────────────────────────────────────────────────────
+
+// Get user's lesson progress
+app.get('/api/progress', (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token' });
+  try {
+    const decoded = authRoutes.verifyToken(token);
+    if (!decoded) return res.status(401).json({ error: 'Invalid token' });
+    const db = require('./database/db');
+    db.prepare('CREATE TABLE IF NOT EXISTS lesson_progress (user_id INTEGER, lesson_id TEXT, step_index INTEGER, PRIMARY KEY (user_id, lesson_id, step_index))').run();
+    const rows = db.prepare('SELECT lesson_id, step_index FROM lesson_progress WHERE user_id = ?').all(decoded.id);
+    res.json({ progress: rows });
+  } catch { res.status(401).json({ error: 'Invalid token' }); }
+});
+
+// Save a completed step
+app.post('/api/progress', (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token' });
+  const { lessonId, stepIndex } = req.body;
+  try {
+    const decoded = authRoutes.verifyToken(token);
+    if (!decoded) return res.status(401).json({ error: 'Invalid token' });
+    const db = require('./database/db');
+    db.prepare('CREATE TABLE IF NOT EXISTS lesson_progress (user_id INTEGER, lesson_id TEXT, step_index INTEGER, PRIMARY KEY (user_id, lesson_id, step_index))').run();
+    db.prepare('INSERT OR IGNORE INTO lesson_progress (user_id, lesson_id, step_index) VALUES (?, ?, ?)').run(decoded.id, lessonId, stepIndex);
+    res.json({ ok: true });
+  } catch { res.status(401).json({ error: 'Invalid token' }); }
+});
+
+// Reset a lesson's progress
+app.delete('/api/progress/:lessonId', (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token' });
+  try {
+    const decoded = authRoutes.verifyToken(token);
+    if (!decoded) return res.status(401).json({ error: 'Invalid token' });
+    const db = require('./database/db');
+    db.prepare('DELETE FROM lesson_progress WHERE user_id = ? AND lesson_id = ?').run(decoded.id, req.params.lessonId);
+    res.json({ ok: true });
+  } catch { res.status(401).json({ error: 'Invalid token' }); }
+});
+
+// ─── GUI forwarding (noVNC) ───────────────────────────────────────────────────
+
+const guiProxy = httpProxy.createProxyServer({ ws: true });
+
+// Launch a GUI app inside the container via Xvfb + x11vnc + noVNC
+app.post('/api/gui/launch', async (req, res) => {
+  const { sessionId, app: guiApp } = req.body;
+  if (!sessionId || !guiApp) {
+    return res.status(400).json({ error: 'sessionId and app are required' });
+  }
+  const sess = sessions.get(sessionId);
+  if (!sess) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  try {
+    const container = sess.container;
+
+    await container.exec({
+      Cmd: ['bash', '-c', `nohup /usr/local/bin/gui-launch ${guiApp} > /tmp/gui.log 2>&1 &`],
+      AttachStdout: false,
+      AttachStderr: false,
+      Detach: true
+    }).then(e => e.start({ Detach: true }));
+
+    // Wait for everything to boot
+    await new Promise(r => setTimeout(r, 8000));
+
+    res.json({ url: `http://localhost:${sess.guiPort}` });
+  } catch (err) {
+    console.error(`[gui/launch] ${sessionId}:`, err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Proxy requests to the container's noVNC (port 6080)
+app.get('/api/gui/proxy/:sessionId/*', async (req, res) => {
+  const sess = sessions.get(req.params.sessionId);
+  if (!sess) return res.status(404).json({ error: 'Session not found' });
+
+  try {
+    // Check if websockify is actually running inside the container
+    const checkExec = await sess.container.exec({
+      Cmd: ['bash', '-c', 'pgrep -f websockify'],
+      AttachStdout: true, AttachStderr: true,
+    });
+    const checkStream = await checkExec.start({ hijack: true, stdin: false });
+    let output = '';
+    checkStream.on('data', (chunk) => { output += chunk.toString(); });
+    await new Promise(r => checkStream.on('end', r));
+    if (!output.trim()) {
+      return res.status(503).json({ error: 'GUI is not running. Launch a GUI app first.' });
+    }
+
+    const info = await sess.container.inspect();
+    const containerIp = info.NetworkSettings.IPAddress ||
+      (info.NetworkSettings.Networks && Object.values(info.NetworkSettings.Networks)[0]?.IPAddress);
+    if (!containerIp) return res.status(500).json({ error: 'Cannot determine container IP' });
+
+    guiProxy.web(req, res, {
+      target: `http://${containerIp}:6080`,
+      changeOrigin: true,
+    }, (err) => {
+      console.error(`[gui/proxy] error:`, err.message);
+      if (!res.headersSent) {
+        res.status(502).json({ error: 'Proxy error: GUI may not be ready yet.' });
+      }
+    });
+  } catch (err) {
+    console.error(`[gui/proxy] ${req.params.sessionId}:`, err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Close GUI processes inside the container
+app.post('/api/gui/close', async (req, res) => {
+  const { sessionId } = req.body;
+  if (!sessionId) return res.status(400).json({ error: 'sessionId is required' });
+  const sess = sessions.get(sessionId);
+  if (!sess) return res.status(404).json({ error: 'Session not found' });
+
+  try {
+    const container = sess.container;
+    const execKill = await container.exec({
+      Cmd: ['bash', '-c', 'pkill -f Xvfb; pkill -f x11vnc; pkill -f websockify'],
+      AttachStdout: true, AttachStderr: true,
+    });
+    const s = await execKill.start({ hijack: true, stdin: false });
+    s.resume();
+    await new Promise(r => s.on('end', r));
+    res.json({ success: true });
+  } catch (err) {
+    console.error(`[gui/close] ${sessionId}:`, err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
