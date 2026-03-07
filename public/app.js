@@ -1669,47 +1669,36 @@ const GUI_APP_BINARY = {
 };
 
 async function launchGuiApp(appName) {
+  const binaryName = GUI_APP_BINARY[appName] || appName;
   const panel = document.getElementById('gui-panel');
   const iframe = document.getElementById('gui-iframe');
   const title = document.getElementById('gui-panel-title');
-  panel.classList.remove('hidden');
-  title.textContent = appName;
 
-  iframe.srcdoc = `<html><body style="margin:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:monospace;color:#7c3aed;text-align:center;padding:20px;">
-    <div style="font-size:48px;margin-bottom:20px;">⚡</div>
-    <div style="font-size:20px;margin-bottom:10px;">Launching ${appName}...</div>
-    <div style="font-size:13px;color:#555;margin-bottom:30px;">Setting up virtual display...</div>
-    <div style="width:200px;height:4px;background:#1a1a1a;border-radius:2px;overflow:hidden;">
-      <div style="height:100%;background:#7c3aed;animation:pulse 1.5s ease-in-out infinite;width:60%"></div>
-    </div>
-    <style>@keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}</style>
-  </body></html>`;
+  title.textContent = binaryName;
+  iframe.src = '';
+  panel.classList.remove('hidden');
+  document.getElementById('terminal-page')?.classList.add('gui-open');
+  if (fitAddon) fitAddon.fit();
 
   try {
     const res = await fetch('/api/gui/launch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId, app: appName })
+      body: JSON.stringify({ sessionId, app: binaryName })
     });
     const data = await res.json();
     if (data.url) {
-      const vncUrl = `${data.url}/vnc.html?autoconnect=true&reconnect=true&resize=remote&quality=6`;
-      window.open(vncUrl, '_blank');
-      iframe.srcdoc = `<html><body style="margin:0;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:monospace;color:#7c3aed;text-align:center;padding:20px;">
-        <div style="font-size:48px;margin-bottom:20px;">✅</div>
-        <div style="font-size:20px;margin-bottom:10px;">${appName} launched</div>
-        <div style="font-size:13px;color:#555;">Check the new tab that opened.</div>
-      </body></html>`;
+      const port = new URL(data.url).port;
+      iframe.src = `http://localhost:${port}/vnc.html?autoconnect=true&reconnect=true&resize=remote&quality=6&compression=2`;
     }
-  } catch(err) {
-    iframe.srcdoc = `<html><body style="margin:0;background:#0a0a0a;display:flex;align-items:center;justify-content:center;height:100vh;font-family:monospace;color:#ff4444;">Failed to launch ${appName}</body></html>`;
+  } catch (err) {
+    console.error('GUI launch failed:', err);
   }
 }
 
 function closeGuiPanel() {
   const panel = document.getElementById('gui-panel');
   panel.classList.add('hidden');
-  document.getElementById('gui-loading')?.classList.add('hidden');
   document.getElementById('terminal-page')?.classList.remove('gui-open');
   document.getElementById('gui-iframe').src = '';
   if (fitAddon) fitAddon.fit();

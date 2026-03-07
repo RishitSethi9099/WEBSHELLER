@@ -636,15 +636,11 @@ app.post('/api/gui/launch', async (req, res) => {
 });
 
 // Proxy requests to the container's noVNC (port 6080)
-app.use('/novnc/:sessionId/*', async (req, res) => {
-  const sessionId = req.params.sessionId;
-  const sess = sessions.get(sessionId);
+app.get('/api/gui/proxy/:sessionId/*', async (req, res) => {
+  const sess = sessions.get(req.params.sessionId);
   if (!sess) return res.status(404).json({ error: 'Session not found' });
 
   try {
-    // Rewrite URL to strip /novnc/:sessionId prefix
-    req.url = req.originalUrl.split(`/novnc/${sessionId}`)[1] || '/';
-
     // Check if websockify is actually running inside the container
     const checkExec = await sess.container.exec({
       Cmd: ['bash', '-c', 'pgrep -f websockify'],
