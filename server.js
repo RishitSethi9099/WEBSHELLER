@@ -560,15 +560,15 @@ wss.on("connection", (ws) => {
           if (!(await imageExists(cfg.image))) {
             const customImgBaseKey = cfg.image.split(':')[0];
             if (CUSTOM_IMAGES[customImgBaseKey] && CUSTOM_IMAGES[customImgBaseKey].imageTag === cfg.image) {
-              // Custom image — build it inline (not on Docker Hub)
-              wsSend(ws, { type: "status", message: `Building ${cfg.image} image — this takes 1–2 min (first time only)…` });
+              // Custom image — ONLY build if missing
               try {
+                await docker.getImage(cfg.image).inspect();
+                console.log(`[session] using existing prebuilt image: ${cfg.image}`);
+              } catch (_) {
+                wsSend(ws, { type: "status", message: `Building ${cfg.image} image — this takes 1–2 min (first time only)…` });
                 await buildImage(cfg.image, CUSTOM_IMAGES[customImgBaseKey].dockerfile);
-                wsSend(ws, { type: "status", message: `Image ready. Starting container…` });
-              } catch (buildErr) {
-                wsSend(ws, { type: "error", message: `Failed to build ${cfg.image}: ${buildErr.message}` });
-                return;
               }
+              wsSend(ws, { type: "status", message: `Image ready. Starting container…` });
             } else {
               // Third-party image — pull from registry
               wsSend(ws, { type: "status", message: `Pulling ${cfg.image} — this may take a minute…` });
