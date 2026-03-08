@@ -44,9 +44,10 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
     php php-curl \\
     xvfb x11vnc novnc websockify xterm fluxbox \\
     libxrender1 libxtst6 libxi6 libxrandr2 \\
-    libgtk-3-0 libglib2.0-0 libnss3 libasound2t64 \\
-    dbus-x11 fonts-liberation xdg-utils wmctrl x11-xserver-utils
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y wireshark burpsuite zaproxy maltego torbrowser-launcher ghidra armitage || true
+    libgtk-3-0t64 libglib2.0-0 libnss3 libasound2t64 \\
+    dbus-x11 fonts-liberation xdg-utils wmctrl x11-xserver-utils \\
+    wireshark burpsuite zaproxy maltego torbrowser-launcher ghidra armitage \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ENV _JAVA_OPTIONS='-Dsun.java2d.opengl=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false'
 
@@ -106,7 +107,7 @@ RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch zaproxy \\"\\$@\\"\\n" > /us
 RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch maltego \\"\\$@\\"\\n" > /usr/local/bin/maltego-safe && chmod +x /usr/local/bin/maltego-safe
 RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch torbrowser-launcher \\"\\$@\\"\\n" > /usr/local/bin/torbrowser-safe && chmod +x /usr/local/bin/torbrowser-safe
 RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch ghidra \\"\\$@\\"\\n" > /usr/local/bin/ghidra-safe && chmod +x /usr/local/bin/ghidra-safe
-RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch armitage \\"\\$@\\"\\n" > /usr/local/bin/armitage-safe && chmod +x /usr/local/bin/armitage-safe
+RUN printf "#!/bin/bash\\n/usr/local/bin/gui-launch armitage \\"\\$@\\"\\n" > /usr/local/bin/armitage-safe
 
 # Update PATH to prioritize safe wrappers
 ENV PATH="/usr/local/bin:$PATH"
@@ -129,10 +130,11 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
     netcat-openbsd nmap whois traceroute \\
     xvfb x11vnc novnc websockify xterm fluxbox wmctrl \\
     libxrender1 libxtst6 libxi6 libxrandr2 \\
-    libgtk-3-0 libglib2.0-0 libnss3 libasound2 \\
+    libgtk-3-0t64 libglib2.0-0 libnss3 libasound2t64 \\
     dbus-x11 fonts-liberation xdg-utils x11-xserver-utils \\
     firefox gedit gnome-calculator \\
-    php php-curl
+    php php-curl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ENV _JAVA_OPTIONS='-Dsun.java2d.opengl=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false'
 
@@ -264,16 +266,28 @@ guiProxy.on('error', (err, req, res) => {
 app.all('/gui/:sessionId/*', async (req, res) => {
   const sess = sessions.get(req.params.sessionId);
   if (!sess) return res.status(404).json({ error: 'GUI session not found.' });
+  
   try {
     const info = await sess.container.inspect();
     const ip = info.NetworkSettings.IPAddress ||
-      Object.values(info.NetworkSettings.Networks)[0]?.IPAddress;
+      Object.values(info.NetworkSettings.Networks)[0]?.IPAddress || 'localhost';
+    
     req.url = req.url.replace(/^\/gui\/[^\/]+/, '') || '/';
-    guiProxy.web(req, res, { target: `http://${ip}:6080`, changeOrigin: true }, (err) => {
-      if (!res.headersSent) res.status(502).json({ error: 'GUI not ready.' });
+    
+    // Proxy with built-in retry/wait for slow-booting containers
+    guiProxy.web(req, res, { 
+      target: `http://${ip}:6080`, 
+      changeOrigin: true,
+      proxyTimeout: 5000,
+      timeout: 5000
+    }, (err) => {
+      // If it fails, it might just be booting. Don't send error yet if headers aren't sent.
+      if (!res.headersSent) {
+        res.status(502).json({ error: 'Workstation is booting... Refresh in 3 seconds.' });
+      }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (!res.headersSent) res.status(500).json({ error: err.message });
   }
 });
 
@@ -298,9 +312,8 @@ server.on('upgrade', (req, socket, head) => {
         
         // Strip the /gui/:sessionId prefix for the proxy
         // Important: Many websockify versions prefer the root path for handshakes
-        // Strip everything to the root path for the destination websockify server
-        // This is the most compatible way to handle handshakes through multiple proxies
-        req.url = '/';
+        // Strip /gui/${sessionId}/ and preserve the rest of the path for websockify
+        req.url = req.url.replace(/^\/gui\/[^\/]+/, '') || '/';
         
         guiProxy.ws(req, socket, head, {
           target: `ws://${ip}:6080`,
@@ -379,30 +392,39 @@ app.delete('/api/admin/sessions/:id', requireAdmin, async (req, res) => {
 // ─── Session store ───────────────────────────────────────────────────────────
 // sessionId → { container, stream, ws, os, timer, lastActivity }
 const sessions = new Map();
+const pendingBuilds = new Map(); // Tracks active image builds to prevent duplicates
 
 // --- Image builder ------------------------------------------------------------
 // Builds sheller-kali / sheller-ubuntu once at startup with all tools baked in.
 // Uses tar-stream to pack an inline Dockerfile into the build context.
 
 async function buildImage(tag, dockerfileContent) {
-  const tarStream = require("tar-stream");
-  const pack = tarStream.pack();
-  pack.entry({ name: "Dockerfile" }, dockerfileContent);
-  pack.finalize();
-  return new Promise((resolve, reject) => {
-    docker.buildImage(pack, { t: tag, forcerm: true }, (err, stream) => {
-      if (err) return reject(err);
-      docker.modem.followProgress(stream,
-        (err2, output) => {
-          if (err2) return reject(err2);
-          const errLine = output && output.find(o => o.error);
-          if (errLine) return reject(new Error(errLine.error));
-          resolve();
-        },
-        (event) => { if (event.stream) process.stdout.write(`[build:${tag}] ${event.stream}`); }
-      );
+  if (pendingBuilds.has(tag)) return pendingBuilds.get(tag);
+
+  const buildPromise = (async () => {
+    const tarStream = require("tar-stream");
+    const pack = tarStream.pack();
+    pack.entry({ name: "Dockerfile" }, dockerfileContent);
+    pack.finalize();
+    return new Promise((resolve, reject) => {
+      docker.buildImage(pack, { t: tag, forcerm: true }, (err, stream) => {
+        if (err) return reject(err);
+        docker.modem.followProgress(stream,
+          (err2, output) => {
+            pendingBuilds.delete(tag);
+            if (err2) return reject(err2);
+            const errLine = output && output.find(o => o.error);
+            if (errLine) return reject(new Error(errLine.error));
+            resolve();
+          },
+          (event) => { if (event.stream) process.stdout.write(`[build:${tag}] ${event.stream}`); }
+        );
+      });
     });
-  });
+  })();
+
+  pendingBuilds.set(tag, buildPromise);
+  return buildPromise;
 }
 
 async function ensureCustomImages() {
