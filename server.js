@@ -45,7 +45,7 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
     xvfb x11vnc novnc websockify xterm fluxbox \\
     libxrender1 libxtst6 libxi6 libxrandr2 \\
     libgtk-3-0 libglib2.0-0 libnss3 libasound2t64 \\
-    dbus-x11 fonts-liberation xdg-utils wmctrl
+    dbus-x11 fonts-liberation xdg-utils wmctrl x11-xserver-utils
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y wireshark burpsuite zaproxy maltego torbrowser-launcher ghidra armitage || true
 
 ENV _JAVA_OPTIONS='-Dsun.java2d.opengl=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false'
@@ -130,7 +130,7 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
     xvfb x11vnc novnc websockify xterm fluxbox wmctrl \\
     libxrender1 libxtst6 libxi6 libxrandr2 \\
     libgtk-3-0 libglib2.0-0 libnss3 libasound2 \\
-    dbus-x11 fonts-liberation xdg-utils \\
+    dbus-x11 fonts-liberation xdg-utils x11-xserver-utils \\
     firefox gedit gnome-calculator \\
     php php-curl
 
@@ -605,9 +605,9 @@ wss.on("connection", (ws) => {
             WorkingDir: cfg.workdir,
             ExposedPorts: (os === 'kali' || os === 'ubuntu') ? { '6080/tcp': {} } : {},
             HostConfig: {
-              Memory:    512 * 1024 * 1024,
+              Memory:    2048 * 1024 * 1024, // Increased to 2GB for heavy tools
               CpuPeriod: 100000,
-              CpuQuota:  100000,
+              CpuQuota:  200000, // Increased to 2 CPUs
               Binds:     [`${volName}:/root/workspace`],
               NetworkMode: "bridge",
               PortBindings: (os === 'kali' || os === 'ubuntu') ? {
