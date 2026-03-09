@@ -53,7 +53,7 @@ RUN apt-get update -qq && \\
 
 RUN mkdir -p /opt/burpsuite && \\
     curl -L "https://portswigger.net/burp/releases/download?product=community&type=jar" -o /opt/burpsuite/burpsuite.jar && \\
-    printf '#!/bin/bash\\njava -jar /opt/burpsuite/burpsuite.jar "$@"\n' > /usr/local/bin/burpsuite && \\
+    printf '#!/bin/bash\\njava -jar /opt/burpsuite/burpsuite.jar "$@"\\n' > /usr/local/bin/burpsuite && \\
     chmod +x /usr/local/bin/burpsuite
 
 RUN curl -L "https://maltego-downloads.s3.us-east-2.amazonaws.com/linux/Maltego.v4.6.0.deb" -o /tmp/maltego.deb && \\
@@ -63,21 +63,21 @@ RUN curl -L "https://maltego-downloads.s3.us-east-2.amazonaws.com/linux/Maltego.
 RUN curl -L "https://www.torproject.org/dist/torbrowser/13.5.1/tor-browser-linux-x86_64-13.5.1.tar.xz" -o /tmp/torbrowser.tar.xz && \\
     tar -xJf /tmp/torbrowser.tar.xz -C /opt && \\
     mv /opt/tor-browser /opt/tor-browser || true && \\
-    printf '#!/bin/bash\\n/opt/tor-browser/start-tor-browser.desktop --detach "$@"\n' > /usr/local/bin/torbrowser-launcher && \\
+    printf '#!/bin/bash\\n/opt/tor-browser/start-tor-browser.desktop --detach "$@"\\n' > /usr/local/bin/torbrowser-launcher && \\
     chmod +x /usr/local/bin/torbrowser-launcher && \\
     rm /tmp/torbrowser.tar.xz
 
 RUN curl -L "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.1.2_build/ghidra_11.1.2_PUBLIC_20240709.zip" -o /tmp/ghidra.zip && \\
     unzip -q /tmp/ghidra.zip -d /opt && \\
     mv /opt/ghidra_* /opt/ghidra && \\
-    printf '#!/bin/bash\\n/opt/ghidra/ghidraRun "$@"\n' > /usr/local/bin/ghidra && \\
+    printf '#!/bin/bash\\n/opt/ghidra/ghidraRun "$@"\\n' > /usr/local/bin/ghidra && \\
     chmod +x /usr/local/bin/ghidra && \\
     rm /tmp/ghidra.zip
 
 RUN curl -L "https://github.com/r00t0v3rr1d3/armitage/releases/download/latest/armitage.jar" -o /opt/armitage.jar 2>/dev/null || \\
     curl -L "https://www.fastandeasyhacking.com/download/armitage141120.tgz" -o /tmp/armitage.tgz && \\
     tar -xzf /tmp/armitage.tgz -C /opt && \\
-    printf '#!/bin/bash\\ncd /opt/armitage && bash armitage "$@"\n' > /usr/local/bin/armitage && \\
+    printf '#!/bin/bash\\ncd /opt/armitage && bash armitage "$@"\\n' > /usr/local/bin/armitage && \\
     chmod +x /usr/local/bin/armitage
 
 ENV _JAVA_OPTIONS='-Dsun.java2d.opengl=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false'
