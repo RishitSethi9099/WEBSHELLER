@@ -37,47 +37,49 @@ const CUSTOM_IMAGES = {
     baseImage: "kalilinux/kali-rolling",
     dockerfile: `FROM kalilinux/kali-rolling
 ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root DISPLAY=:1
-RUN apt-get update -qq && \\
-    echo "wireshark-common wireshark-common/install-setuid boolean true" | debconf-set-selections && \\
-    apt-get install -y -qq --no-install-recommends \\
+RUN echo "wireshark-common wireshark-common/install-setuid boolean true" | debconf-set-selections && \\
+    apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
     bash coreutils procps iproute2 iputils-ping net-tools \\
     curl wget dnsutils sudo python3 vim nano whois \\
     nmap netcat-openbsd less file unzip git openssh-client \\
-    php php-curl \\
+    php php-curl default-jdk \\
     xvfb x11vnc novnc websockify xterm fluxbox \\
     libxrender1 libxtst6 libxi6 libxrandr2 \\
     libgtk-3-0t64 libglib2.0-0 libnss3 libasound2t64 \\
     dbus-x11 fonts-liberation xdg-utils wmctrl x11-xserver-utils \\
-    wireshark zaproxy default-jdk \\
+    wireshark zaproxy \\
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Burpsuite — download community JAR (no apt package)
 RUN mkdir -p /opt/burpsuite && \\
-    curl -L "https://portswigger.net/burp/releases/download?product=community&type=jar" -o /opt/burpsuite/burpsuite.jar && \\
+    curl -sL "https://portswigger.net/burp/releases/download?product=community&type=jar" -o /opt/burpsuite/burpsuite.jar && \\
     printf '#!/bin/bash\\njava -jar /opt/burpsuite/burpsuite.jar "$@"\\n' > /usr/local/bin/burpsuite && \\
     chmod +x /usr/local/bin/burpsuite
 
-RUN curl -L "https://maltego-downloads.s3.us-east-2.amazonaws.com/linux/Maltego.v4.6.0.deb" -o /tmp/maltego.deb && \\
-    dpkg -i /tmp/maltego.deb || apt-get install -f -y && \\
-    rm /tmp/maltego.deb
+# Maltego — install from official .deb
+RUN curl -sL "https://maltego-downloads.s3.us-east-2.amazonaws.com/linux/Maltego.v4.6.0.deb" -o /tmp/maltego.deb && \\
+    dpkg -i /tmp/maltego.deb 2>/dev/null || apt-get install -f -y -qq && \\
+    rm -f /tmp/maltego.deb
 
-RUN curl -L "https://www.torproject.org/dist/torbrowser/13.5.1/tor-browser-linux-x86_64-13.5.1.tar.xz" -o /tmp/torbrowser.tar.xz && \\
+# Tor Browser — direct tarball (torbrowser-launcher is broken in Kali)
+RUN curl -sL "https://www.torproject.org/dist/torbrowser/13.5.1/tor-browser-linux-x86_64-13.5.1.tar.xz" -o /tmp/torbrowser.tar.xz && \\
     tar -xJf /tmp/torbrowser.tar.xz -C /opt && \\
-    mv /opt/tor-browser /opt/tor-browser || true && \\
+    mv /opt/tor-browser* /opt/tor-browser 2>/dev/null || true && \\
     printf '#!/bin/bash\\n/opt/tor-browser/start-tor-browser.desktop --detach "$@"\\n' > /usr/local/bin/torbrowser-launcher && \\
     chmod +x /usr/local/bin/torbrowser-launcher && \\
-    rm /tmp/torbrowser.tar.xz
+    rm -f /tmp/torbrowser.tar.xz
 
-RUN curl -L "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.1.2_build/ghidra_11.1.2_PUBLIC_20240709.zip" -o /tmp/ghidra.zip && \\
+# Ghidra — download latest release zip
+RUN curl -sL "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.1.2_build/ghidra_11.1.2_PUBLIC_20240709.zip" -o /tmp/ghidra.zip && \\
     unzip -q /tmp/ghidra.zip -d /opt && \\
-    mv /opt/ghidra_* /opt/ghidra && \\
+    mv /opt/ghidra_* /opt/ghidra 2>/dev/null || true && \\
     printf '#!/bin/bash\\n/opt/ghidra/ghidraRun "$@"\\n' > /usr/local/bin/ghidra && \\
     chmod +x /usr/local/bin/ghidra && \\
-    rm /tmp/ghidra.zip
+    rm -f /tmp/ghidra.zip
 
-RUN curl -L "https://github.com/r00t0v3rr1d3/armitage/releases/download/latest/armitage.jar" -o /opt/armitage.jar 2>/dev/null || \\
-    curl -L "https://www.fastandeasyhacking.com/download/armitage141120.tgz" -o /tmp/armitage.tgz && \\
-    tar -xzf /tmp/armitage.tgz -C /opt && \\
-    printf '#!/bin/bash\\ncd /opt/armitage && bash armitage "$@"\\n' > /usr/local/bin/armitage && \\
+# Armitage — removed from Kali repos, redirect to msfconsole
+RUN apt-get install -y -qq metasploit-framework 2>/dev/null || true && \\
+    printf '#!/bin/bash\\necho "Armitage is no longer maintained. Launching msfconsole instead..."\\nexec msfconsole "$@"\\n' > /usr/local/bin/armitage && \\
     chmod +x /usr/local/bin/armitage
 
 ENV _JAVA_OPTIONS='-Dsun.java2d.opengl=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false'
@@ -148,22 +150,22 @@ CMD ["/bin/bash", "-i"]
 `,
   },
   "sheller-ubuntu": {
-    imageTag: "sheller-ubuntu",
-    baseImage: "ubuntu:latest",
-    dockerfile: `FROM ubuntu:latest
-ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root DISPLAY=:1
-RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \\
-    bash coreutils procps iproute2 iputils-ping net-tools \\
-    curl wget dnsutils sudo python3 python3-pip vim nano \\
-    less file unzip zip git openssh-client \\
-    strace ltrace lsof htop tree \\
-    gcc g++ make nodejs npm \\
-    netcat-openbsd nmap whois traceroute \\
-    xvfb x11vnc novnc websockify xterm fluxbox wmctrl \\
-    libxrender1 libxtst6 libxi6 libxrandr2 \\
-    libgtk-3-0t64 libglib2.0-0 libnss3 libasound2t64 \\
-    dbus-x11 fonts-liberation xdg-utils x11-xserver-utils \\
-    firefox gedit gnome-calculator \\
+    imageTag: "sheller-ubuntu:22.04",
+    baseImage: "ubuntu:22.04",
+    dockerfile: `FROM ubuntu:22.04
+  ENV DEBIAN_FRONTEND=noninteractive TERM=xterm-256color HOME=/root DISPLAY=:1
+  RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends \
+    bash coreutils procps iproute2 iputils-ping net-tools \
+    curl wget dnsutils sudo python3 python3-pip vim nano \
+    less file unzip zip git openssh-client \
+    strace ltrace lsof htop tree \
+    gcc g++ make nodejs npm \
+    netcat-openbsd nmap whois traceroute \
+    xvfb x11vnc novnc websockify xterm fluxbox wmctrl \
+    libxrender1 libxtst6 libxi6 libxrandr2 \
+    libgtk-3-0 libglib2.0-0 libnss3 libasound2 \
+    dbus-x11 fonts-liberation xdg-utils x11-xserver-utils \
+    firefox gedit gnome-calculator \
     php php-curl \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -251,8 +253,13 @@ CMD ["pwsh", "-NoLogo", "-NoProfile"]
 
 // Dynamically compute a hash for the image tag so changes to the Dockerfile force a rebuild
 for (const key of Object.keys(CUSTOM_IMAGES)) {
-  const hash = crypto.createHash('md5').update(CUSTOM_IMAGES[key].dockerfile).digest('hex').substring(0, 8);
-  CUSTOM_IMAGES[key].imageTag = `${key}:${hash}`;
+  // Use fixed tag for sheller-ubuntu
+  if (key === "sheller-ubuntu") {
+    CUSTOM_IMAGES[key].imageTag = "sheller-ubuntu:22.04";
+  } else {
+    const hash = crypto.createHash('md5').update(CUSTOM_IMAGES[key].dockerfile).digest('hex').substring(0, 8);
+    CUSTOM_IMAGES[key].imageTag = `${key}:${hash}`;
+  }
 }
 
 const OS_CONFIG = {
@@ -277,7 +284,7 @@ const OS_CONFIG = {
   },
 };
 
-const INACTIVITY_MS = 15 * 60 * 1000; // 15 minutes
+const INACTIVITY_MS = 60 * 60 * 1000; // 1 hour
 
 // ─── App + WebSocket setup ───────────────────────────────────────────────────
 
@@ -300,21 +307,21 @@ app.all('/gui/:sessionId/*', async (req, res) => {
   
   try {
     const info = await sess.container.inspect();
-    const ip = info.NetworkSettings.IPAddress ||
-      Object.values(info.NetworkSettings.Networks)[0]?.IPAddress || 'localhost';
+    // On Windows/Mac (localhost), container IPs are not reachable. 
+    // We fall back to localhost if the IP is not routable or if we are clearly on a dev machine.
+    const isLocal = req.headers.host.includes('localhost') || req.headers.host.includes('127.0.0.1');
+    const targetIp = isLocal ? 'localhost' : (info.NetworkSettings.IPAddress || 'localhost');
     
     req.url = req.url.replace(/^\/gui\/[^\/]+/, '') || '/';
     
-    // Proxy with built-in retry/wait for slow-booting containers
     guiProxy.web(req, res, { 
-      target: `http://${ip}:6080`, 
+      target: `http://${targetIp}:6080`, 
       changeOrigin: true,
-      proxyTimeout: 5000,
-      timeout: 5000
+      proxyTimeout: 10000,
+      timeout: 10000
     }, (err) => {
-      // If it fails, it might just be booting. Don't send error yet if headers aren't sent.
       if (!res.headersSent) {
-        res.status(502).json({ error: 'Workstation is booting... Refresh in 3 seconds.' });
+        res.status(502).json({ error: 'Workstation is booting... Please wait 5 seconds.' });
       }
     });
   } catch (err) {
@@ -337,9 +344,9 @@ server.on('upgrade', (req, socket, head) => {
     const sess = sessions.get(sessionId);
     if (sess) {
       sess.container.inspect().then(info => {
-        const ip = info.NetworkSettings.IPAddress || 
-                   info.NetworkSettings.Networks?.[Object.keys(info.NetworkSettings.Networks)[0]]?.IPAddress ||
-                   'localhost'; // Fallback to host map if IP discovery fails
+        // Universal routing: Use localhost for dev, and internal IP for production
+        const isLocal = req.headers.host.includes('localhost') || req.headers.host.includes('127.0.0.1');
+        const ip = isLocal ? 'localhost' : (info.NetworkSettings.IPAddress || Object.values(info.NetworkSettings.Networks)[0]?.IPAddress || 'localhost');
         
         // Strip the /gui/:sessionId prefix for the proxy
         // Important: Many websockify versions prefer the root path for handshakes
@@ -869,25 +876,29 @@ app.post('/api/gui/launch', async (req, res) => {
     }).then(e => e.start({ Detach: true }));
 
     // --- Readiness Check ---
-    // Poll for the VNC bridge port (6080) to be active inside the container
+    // Poll for the VNC bridge port (6080) to be active inside the container.
+    // Uses ss (modern) → netstat (legacy) → curl as fallbacks.
+    // Docker stream data has an 8-byte header that must be stripped before string matching.
     let ready = false;
     for (let i = 0; i < 30; i++) {
       try {
         const checkExec = await container.exec({
-          Cmd: ['bash', '-c', 'ss -tulpn 2>/dev/null | grep :6080 || netstat -tulpn 2>/dev/null | grep :6080 || curl -s --max-time 1 http://localhost:6080 > /dev/null 2>&1 && echo READY'],
+          Cmd: ['bash', '-c', 'ss -tulpn 2>/dev/null | grep :6080 || netstat -tulpn 2>/dev/null | grep :6080 || (curl -s --max-time 1 http://localhost:6080 > /dev/null 2>&1 && echo READY)'],
           AttachStdout: true,
+          AttachStderr: false,
         });
         const checkStream = await checkExec.start({ hijack: true, stdin: false });
         let output = '';
         checkStream.on('data', (d) => {
-          // Strip 8-byte Docker stream header
-          if (d.length >= 8 && (d[0] === 1 || d[0] === 2)) {
-            d = d.slice(8);
+          // Strip Docker attach 8-byte stream header before reading text
+          let chunk = Buffer.isBuffer(d) ? d : Buffer.from(d);
+          if (chunk.length >= 8 && (chunk[0] === 1 || chunk[0] === 2)) {
+            chunk = chunk.slice(8);
           }
-          output += d.toString();
+          output += chunk.toString();
         });
         await new Promise(r => checkStream.on('end', r));
-        
+
         if (output.includes(':6080') || output.includes('READY')) {
           ready = true;
           break;
@@ -901,7 +912,10 @@ app.post('/api/gui/launch', async (req, res) => {
       return res.status(504).json({ error: 'Workstation GUI failed to start in time.' });
     }
 
-    // Extra stability delay to ensure handshake readiness
+    // Reset inactivity timer — user is actively using GUI
+    resetInactivityTimer(sessionId);
+
+    // Extra stability delay to ensure websockify handshake is ready
     await new Promise(r => setTimeout(r, 1500));
 
     res.json({ success: true, sessionId });
@@ -912,6 +926,17 @@ app.post('/api/gui/launch', async (req, res) => {
 });
 
 // The old proxy route is removed in favor of the transparent /gui/ path
+
+// Keepalive — called by frontend while GUI panel is open to prevent inactivity timeout
+app.post('/api/gui/keepalive', (req, res) => {
+  const { sessionId } = req.body;
+  if (sessionId && sessions.has(sessionId)) {
+    resetInactivityTimer(sessionId);
+    res.json({ ok: true });
+  } else {
+    res.status(404).json({ ok: false });
+  }
+});
 
 // Close GUI processes inside the container
 app.post('/api/gui/close', async (req, res) => {
