@@ -29,6 +29,7 @@ let ghostHintActive    = false;
 // Terminal write batching
 let pendingWrites = [];
 let rafPending = false;
+let guiKeepaliveInterval = null;
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -1742,6 +1743,18 @@ async function launchGuiApp(appName) {
   document.getElementById('terminal-page')?.classList.add('gui-open');
   if (fitAddon) fitAddon.fit();
 
+  // Keepalive: ping server every 30s while GUI is open to prevent inactivity timeout
+  if (guiKeepaliveInterval) clearInterval(guiKeepaliveInterval);
+  guiKeepaliveInterval = setInterval(() => {
+    if (sessionId) {
+      fetch('/api/gui/keepalive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId })
+      }).catch(() => {});
+    }
+  }, 30 * 1000);
+
   try {
     const res = await fetch('/api/gui/launch', {
       method: 'POST',
@@ -1763,16 +1776,6 @@ async function launchGuiApp(appName) {
       // Force autoconnect with explicit absolute path to avoid proxy/relative resolve issues in production
       const vncPath = `gui/${sessionId}/websockify`;
       iframe.src = `/gui/${sessionId}/vnc.html?autoconnect=1&reconnect=1&reconnect_delay=2000&path=${vncPath}&resize=scale&quality=8&compression=2`;
-
-      // Keepalive: ping server every 4 min while GUI is open to prevent inactivity timeout
-      if (window._guiKeepalive) clearInterval(window._guiKeepalive);
-      window._guiKeepalive = setInterval(() => {
-        fetch('/api/gui/keepalive', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId })
-        }).catch(() => {});
-      }, 4 * 60 * 1000);
     }
   } catch (err) {
     console.error('GUI launch failed:', err);
@@ -1786,7 +1789,10 @@ function closeGuiPanel() {
   const iframe = document.getElementById('gui-iframe');
 
   // Stop keepalive ping
-  if (window._guiKeepalive) { clearInterval(window._guiKeepalive); window._guiKeepalive = null; }
+  if (guiKeepaliveInterval) { 
+    clearInterval(guiKeepaliveInterval); 
+    guiKeepaliveInterval = null; 
+  }
 
   panel.classList.add('hidden');
   if (loader) loader.classList.add('hidden');
