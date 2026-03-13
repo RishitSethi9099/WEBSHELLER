@@ -306,11 +306,17 @@ app.all('/gui/:sessionId/*', async (req, res) => {
   if (!sess) return res.status(404).json({ error: 'GUI session not found.' });
   
   try {
-    const info = await sess.container.inspect();
-    // On Windows/Mac (localhost), container IPs are not reachable. 
-    // We fall back to localhost if the IP is not routable or if we are clearly on a dev machine.
-    const isLocal = req.headers.host.includes('localhost') || req.headers.host.includes('127.0.0.1');
-    const targetIp = isLocal ? 'localhost' : (info.NetworkSettings.IPAddress || 'localhost');
+    let targetIp;
+    if (sess.containerIp) {
+      targetIp = sess.containerIp;
+    } else {
+      const info = await sess.container.inspect();
+      // On Windows/Mac (localhost), container IPs are not reachable. 
+      // We fall back to localhost if the IP is not routable or if we are clearly on a dev machine.
+      const isLocal = req.headers.host.includes('localhost') || req.headers.host.includes('127.0.0.1');
+      targetIp = isLocal ? 'localhost' : (info.NetworkSettings.IPAddress || 'localhost');
+      sess.containerIp = targetIp;
+    }
     
     req.url = req.url.replace(/^\/gui\/[^\/]+/, '') || '/';
     
@@ -343,25 +349,30 @@ server.on('upgrade', (req, socket, head) => {
     const sessionId = pathname.split('/')[2];
     const sess = sessions.get(sessionId);
     if (sess) {
-      sess.container.inspect().then(info => {
-        // Universal routing: Use localhost for dev, and internal IP for production
-        const isLocal = req.headers.host.includes('localhost') || req.headers.host.includes('127.0.0.1');
-        const ip = isLocal ? 'localhost' : (info.NetworkSettings.IPAddress || Object.values(info.NetworkSettings.Networks)[0]?.IPAddress || 'localhost');
-        
-        // Strip the /gui/:sessionId prefix for the proxy
-        // Important: Many websockify versions prefer the root path for handshakes
-        // Strip /gui/${sessionId}/ and preserve the rest of the path for websockify
-        req.url = req.url.replace(/^\/gui\/[^\/]+/, '') || '/';
-        
-        guiProxy.ws(req, socket, head, {
-          target: `ws://${ip}:6080`,
-          changeOrigin: true,
-          ws: true
-        });
-      }).catch(err => {
-        console.error('[gui-ws-upgrade] error:', err.message);
-        socket.destroy();
-      });
+      (async () => {
+        try {
+          let ip;
+          if (sess.containerIp) {
+            ip = sess.containerIp;
+          } else {
+            const info = await sess.container.inspect();
+            const isLocal = req.headers.host.includes('localhost') || req.headers.host.includes('127.0.0.1');
+            ip = isLocal ? 'localhost' : (info.NetworkSettings.IPAddress || Object.values(info.NetworkSettings.Networks)[0]?.IPAddress || 'localhost');
+            sess.containerIp = ip;
+          }
+          
+          req.url = req.url.replace(/^\/gui\/[^\/]+/, '') || '/';
+          
+          guiProxy.ws(req, socket, head, {
+            target: `ws://${ip}:6080`,
+            changeOrigin: true,
+            ws: true
+          });
+        } catch (err) {
+          console.error('[gui-ws-upgrade] error:', err.message);
+          socket.destroy();
+        }
+      })();
       return;
     } else {
       socket.destroy();
@@ -489,11 +500,40 @@ async function destroySession(sessionId) {
   const sess = sessions.get(sessionId);
   if (!sess) return;
   clearTimeout(sess.timer);
+  clearImmediate(sess.immediateHandle);
+  clearTimeout(sess.flushTimeout);
   sessions.delete(sessionId);
   try { sess.stream.destroy(); } catch (_) {}
   try { await sess.container.stop({ t: 3 }); } catch (_) {}
   try { await sess.container.remove({ force: true }); } catch (_) {}
   console.log(`[session] destroyed: ${sessionId}`);
+}
+
+function flushTerminalOutput(sessionId) {
+  const sess = sessions.get(sessionId);
+  if (!sess) return;
+  
+  if (sess.immediateHandle) {
+    clearImmediate(sess.immediateHandle);
+    sess.immediateHandle = null;
+  }
+  if (sess.flushTimeout) {
+    clearTimeout(sess.flushTimeout);
+    sess.flushTimeout = null;
+  }
+  
+  sess.flushScheduled = false;
+  if (sess.outputBuffer.length === 0) return;
+
+  const mergedChunk = Buffer.concat(sess.outputBuffer);
+  sess.outputBuffer = [];
+
+  if (sess.ws && sess.ws.readyState === WebSocket.OPEN) {
+    const typedBuffer = Buffer.alloc(mergedChunk.length + 1);
+    typedBuffer[0] = 0x01;
+    mergedChunk.copy(typedBuffer, 1);
+    sess.ws.send(typedBuffer, { binary: true });
+  }
 }
 
 function resetInactivityTimer(sessionId) {
@@ -596,7 +636,34 @@ wss.on("connection", (ws) => {
           existing.ws = ws;
           existing.stream.removeAllListeners("data");
           existing.stream.on("data", (chunk) => {
-            wsSend(existing.ws, { type: "output", data: Buffer.from(chunk).toString("base64") });
+            const s = sessions.get(sessionId);
+            if (!s) return;
+            let data = Buffer.from(chunk);
+            data = stripDockerHeader(data);
+            if (data.length === 0) return;
+
+            // Check first 5 chunks for the handshake JSON blob
+            if (s.stripCount < 5) {
+              s.stripCount++;
+              let text = data.toString("utf8");
+              if (text.includes('"hijack"') && text.includes('"stream"')) {
+                const idx = text.indexOf('{"stream"');
+                const endIdx = text.indexOf('}', idx);
+                if (idx !== -1 && endIdx !== -1) {
+                  text = text.substring(0, idx) + text.substring(endIdx + 1);
+                  text = text.replace(/[\x00-\x08\x0E-\x1A]/g, "").trim();
+                }
+                if (text.length === 0) return;
+                data = Buffer.from(text);
+              }
+            }
+
+            s.outputBuffer.push(data);
+            if (!s.flushScheduled) {
+              s.flushScheduled = true;
+              s.immediateHandle = setImmediate(() => flushTerminalOutput(sessionId));
+              s.flushTimeout = setTimeout(() => flushTerminalOutput(sessionId), 20);
+            }
           });
           resetInactivityTimer(sessionId);
           wsSend(ws, {
@@ -694,7 +761,10 @@ wss.on("connection", (ws) => {
 
           console.log(`[session] container started: ${sessionId} (${cfg.name})`);
 
-          const sessData = { container, stream, ws, os, lastActivity: Date.now(), timer: null, stripCount: 0, guiPort };
+          const sessData = { 
+            container, stream, ws, os, lastActivity: Date.now(), timer: null, stripCount: 0, guiPort,
+            outputBuffer: [], flushScheduled: false, flushTimeout: null, immediateHandle: null, containerIp: null
+          };
           sessions.set(sessionId, sessData);
           resetInactivityTimer(sessionId);
 
@@ -720,12 +790,16 @@ wss.on("connection", (ws) => {
                   text = text.replace(/[\x00-\x08\x0E-\x1A]/g, "").trim();
                 }
                 if (text.length === 0) return;
-                wsSend(s.ws, { type: "output", data: Buffer.from(text).toString("base64") });
-                return;
+                data = Buffer.from(text);
               }
             }
 
-            wsSend(s.ws, { type: "output", data: data.toString("base64") });
+            s.outputBuffer.push(data);
+            if (!s.flushScheduled) {
+              s.flushScheduled = true;
+              s.immediateHandle = setImmediate(() => flushTerminalOutput(sessionId));
+              s.flushTimeout = setTimeout(() => flushTerminalOutput(sessionId), 20);
+            }
           });
 
           stream.on("error", (err) => {

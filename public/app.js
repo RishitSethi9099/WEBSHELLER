@@ -26,6 +26,10 @@ let hintDebounceTimer  = null;
 let currentGhostHint   = '';
 let ghostHintActive    = false;
 
+// Terminal write batching
+let pendingWrites = [];
+let rafPending = false;
+
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 function showScreen(id) {
@@ -266,6 +270,7 @@ function loaderGoBack() {
 function connectWebSocket(os, sid) {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}`);
+  ws.binaryType = 'arraybuffer';
 
   ws.addEventListener('open', () => {
     const token = authToken || '';
@@ -273,6 +278,19 @@ function connectWebSocket(os, sid) {
   });
 
   ws.addEventListener('message', (event) => {
+    if (event.data instanceof ArrayBuffer) {
+      const bytes = new Uint8Array(event.data);
+      if (bytes[0] === 0x01) {
+        const terminalData = bytes.slice(1);
+        pendingWrites.push(terminalData);
+        if (!rafPending) {
+          rafPending = true;
+          requestAnimationFrame(flushTerminalWrites);
+        }
+      }
+      return;
+    }
+
     const msg = JSON.parse(event.data);
 
     switch (msg.type) {
@@ -343,6 +361,24 @@ function connectWebSocket(os, sid) {
     const backBtn = document.getElementById('loader-back-btn');
     if (backBtn) backBtn.style.display = '';
   });
+}
+
+function flushTerminalWrites() {
+  if (pendingWrites.length === 0) {
+    rafPending = false;
+    return;
+  }
+  let totalLength = 0;
+  for (const chunk of pendingWrites) totalLength += chunk.length;
+  const merged = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of pendingWrites) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+  pendingWrites = [];
+  rafPending = false;
+  if (term) term.write(merged);
 }
 
 // ─── Terminal page ────────────────────────────────────────────────────────────
