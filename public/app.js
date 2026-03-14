@@ -145,7 +145,17 @@ async function resumeOrPicker() {
   const savedId = localStorage.getItem(SESSION_KEY);
   const savedOs = localStorage.getItem(OS_KEY);
 
-  if (savedId && savedOs) {
+  let validSession = false;
+  if (savedId && savedOs && authToken) {
+    try {
+      const userId = JSON.parse(atob(authToken.split('.')[1])).id;
+      if (savedId.startsWith(`${userId}_`)) {
+        validSession = true;
+      }
+    } catch(e) {}
+  }
+
+  if (validSession) {
     try {
       const res  = await fetch(`/api/session/${savedId}`);
       const json = await res.json();
@@ -156,10 +166,10 @@ async function resumeOrPicker() {
         return;
       }
     } catch (_) {}
-    localStorage.removeItem(SESSION_KEY);
-    localStorage.removeItem(OS_KEY);
   }
 
+  localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(OS_KEY);
   showScreen('picker');
 }
 
@@ -305,8 +315,18 @@ async function handleLogout() {
 
 function selectOS(os) {
   currentOS = os;
-  sessionId = localStorage.getItem(SESSION_KEY) || (crypto.randomUUID?.() || ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)));
-  localStorage.setItem(SESSION_KEY, sessionId);
+  
+  const uuid = crypto.randomUUID?.() || ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+  
+  let prefix = '';
+  if (authToken) {
+    try {
+      const userId = JSON.parse(atob(authToken.split('.')[1])).id;
+      if (userId) prefix = `${userId}_`;
+    } catch (e) {}
+  }
+  
+  sessionId = prefix + uuid;
   localStorage.setItem(OS_KEY, os);
 
   // Reset loader UI
