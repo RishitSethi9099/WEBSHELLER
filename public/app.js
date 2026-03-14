@@ -89,37 +89,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.history.replaceState({}, document.title, '/');
     authToken = tokenParam;
   } else if (url.pathname === '/auth/username-picker' && pendingIdParam) {
-    showScreen('oauth-picker');
-    const oauthForm = document.getElementById('oauth-picker-form');
-    if (oauthForm) {
-      oauthForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = document.getElementById('oauth-username-input').value.trim();
-        const errEl = document.getElementById('oauth-error');
-        const btn = document.getElementById('oauth-submit-btn');
-        errEl.classList.add('hidden');
-        btn.disabled = true;
-
-        try {
-          const res = await fetch('/api/auth/complete-oauth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pending_id: pendingIdParam, username })
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Failed to complete setup');
-
-          localStorage.setItem(TOKEN_KEY, data.token);
-          window.history.replaceState({}, document.title, '/');
-          window.location.reload();
-        } catch (err) {
-          errEl.textContent = err.message;
-          errEl.classList.remove('hidden');
-          btn.disabled = false;
-        }
-      });
-    }
-    return; // Don't proceed to auto-login if picking a username
+    // Show the base auth screen behind the modal
+    showScreen('auth');
+    
+    // Inject the modal overly
+    const modalHtml = `
+      <div id="oauth-username-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999">
+        <div class="auth-card" style="width:400px;padding:2rem">
+          <h2 style="color:#fff;margin-bottom:0.5rem">Almost there!</h2>
+          <p style="color:#888;margin-bottom:1.5rem">Pick a username for your account.</p>
+          <div class="auth-field">
+            <label for="oauth-username">Username</label>
+            <input id="oauth-username" type="text" placeholder="coolhacker42" class="auth-input" />
+          </div>
+          <p id="oauth-username-error" class="auth-error hidden"></p>
+          <button onclick="completeOAuthSetup()" class="auth-submit" style="margin-top:10px;">Complete Setup</button>
+          <button onclick="handleLogout()" style="margin-top:0.5rem;background:transparent;border:1px solid #444;color:#888;width:100%;padding:10px;border-radius:8px;cursor:pointer">Log Out</button>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    return; // Stop here so it waits for user input
   }
 
   // Wire up auth form
@@ -185,6 +175,47 @@ function handleGoogleAuth() {
 }
 function handleGithubAuth() {
   window.location.href = '/api/auth/github';
+}
+
+async function completeOAuthSetup() {
+  const url = new URL(window.location.href);
+  const pending_id = url.searchParams.get('pending_id');
+  const username = document.getElementById('oauth-username').value.trim();
+  const errEl = document.getElementById('oauth-username-error');
+  
+  if (errEl) errEl.classList.add('hidden');
+  
+  if (!username) {
+    if (errEl) {
+      errEl.textContent = "Please enter a username.";
+      errEl.classList.remove('hidden');
+    }
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/complete-oauth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pending_id, username })
+    });
+    const data = await res.json();
+    
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to complete setup');
+    }
+
+    localStorage.setItem(TOKEN_KEY, data.token);
+    const modal = document.getElementById('oauth-username-modal');
+    if (modal) modal.remove();
+    window.history.replaceState({}, '', '/');
+    window.location.reload();
+  } catch (err) {
+    if (errEl) {
+      errEl.textContent = err.message;
+      errEl.classList.remove('hidden');
+    }
+  }
 }
 
 function switchAuthTab(mode) {
