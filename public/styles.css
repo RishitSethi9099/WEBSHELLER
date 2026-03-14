@@ -1925,21 +1925,19 @@ body::before {
   gap: 12px;
 }
 
-.auth-divider {
+.oauth-divider {
   display: flex;
   align-items: center;
-  text-align: center;
-  color: var(--text-dim);
-  font-size: 0.8rem;
-  margin: 4px 0;
+  gap: 10px;
+  color: #666;
+  font-size: 13px;
+  margin: 10px 0;
 }
-.auth-divider::before, .auth-divider::after {
+.oauth-divider::before, .oauth-divider::after {
   content: '';
   flex: 1;
-  border-bottom: 1px solid var(--border);
-}
-.auth-divider span {
-  padding: 0 10px;
+  height: 1px;
+  background: #30363d;
 }
 
 .oauth-btn {
@@ -1948,18 +1946,17 @@ body::before {
   justify-content: center;
   gap: 10px;
   width: 100%;
-  padding: 10px 0;
-  background: var(--bg2);
-  color: #fff;
-  font-size: 0.9rem;
-  font-weight: 500;
+  padding: 12px;
+  margin: 6px 0;
+  background: #1a1f2e;
+  border: 1px solid #30363d;
   border-radius: 8px;
-  border: 1px solid var(--border);
-  transition: all 0.2s ease;
+  color: #fff;
+  font-size: 15px;
   cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
 }
 .oauth-btn:hover {
-  background: var(--bg);
-  border-color: var(--green);
-  filter: brightness(1.1);
+  background: #21262d;
+  border-color: #39d353;
 }
