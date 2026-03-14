@@ -207,7 +207,7 @@ function handleOAuthCallback(req, res, provider) {
 
 // ─── GET /api/auth/google ────────────────────────────────────────────────────
 
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'], prompt: 'select_account' }));
 
 router.get('/google/callback', 
   passport.authenticate('google', { failureRedirect: '/' }),
