@@ -22,6 +22,8 @@ const { Readable } = require("stream");
 const { v4: uuidv4 } = require("uuid");
 const crypto = require("crypto");
 const httpProxy = require('http-proxy');
+const session = require('express-session');
+const passport = require('passport');
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -333,6 +335,14 @@ const wss    = new WebSocket.Server({ noServer: true });
 const docker = new Docker();
 
 app.use(express.json());
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'sheller_fallback_session_secret',
+  resave: false,
+  saveUninitialized: false
+}));
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.use(express.static(path.join(__dirname, "public")));
 

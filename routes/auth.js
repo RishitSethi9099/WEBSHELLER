@@ -10,6 +10,10 @@ const express = require('express');
 const bcrypt  = require('bcrypt');
 const jwt     = require('jsonwebtoken');
 const db      = require('../database/db');
+const crypto  = require('crypto');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const GitHubStrategy = require('passport-github2').Strategy;
 
 const router = express.Router();
 
@@ -144,5 +148,119 @@ router.get('/me', (req, res) => {
 
 // Export the helper too so server.js can verify tokens on WS connections
 router.verifyToken = verifyToken;
+
+// ─── OAuth Strategies & Config ───────────────────────────────────────────────
+
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((obj, done) => done(null, obj));
+
+if (process.env.GOOGLE_CLIENT_ID) {
+  passport.use(new GoogleStrategy({
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: "https://sheller.me/api/auth/google/callback"
+    },
+    (accessToken, refreshToken, profile, cb) => cb(null, profile)
+  ));
+}
+
+if (process.env.GITHUB_CLIENT_ID) {
+  passport.use(new GitHubStrategy({
+      clientID: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      callbackURL: "https://sheller.me/api/auth/github/callback"
+    },
+    (accessToken, refreshToken, profile, cb) => cb(null, profile)
+  ));
+}
+
+function handleOAuthCallback(req, res, provider) {
+  if (!req.user) return res.redirect('/login');
+  
+  const profile = req.user;
+  const email = profile.emails && profile.emails[0] ? profile.emails[0].value : (profile._json && profile._json.email) || '';
+  const oauth_id = String(profile.id);
+  const display_name = profile.displayName || profile.username || '';
+
+  let user = db.prepare('SELECT * FROM users WHERE oauth_provider = ? AND oauth_id = ?').get(provider, oauth_id);
+  
+  if (!user && email) {
+    // Attempt fallback lookup by email
+    user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    if (user) {
+      // Link account
+      db.prepare('UPDATE users SET oauth_provider = ?, oauth_id = ? WHERE id = ?').run(provider, oauth_id, user.id);
+    }
+  }
+
+  if (user) {
+    const token = signToken(user);
+    return res.redirect(`https://sheller.me/auth/callback?token=${token}`);
+  } else {
+    const pending_id = crypto.randomUUID();
+    db.prepare('INSERT INTO pending_oauth (id, provider, oauth_id, email, display_name) VALUES (?, ?, ?, ?, ?)').run(
+      pending_id, provider, oauth_id, email, display_name
+    );
+    return res.redirect(`https://sheller.me/auth/username-picker?pending_id=${pending_id}`);
+  }
+}
+
+// ─── GET /api/auth/google ────────────────────────────────────────────────────
+
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+router.get('/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/' }),
+  (req, res) => handleOAuthCallback(req, res, 'google')
+);
+
+// ─── GET /api/auth/github ────────────────────────────────────────────────────
+
+router.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
+
+router.get('/github/callback', 
+  passport.authenticate('github', { failureRedirect: '/' }),
+  (req, res) => handleOAuthCallback(req, res, 'github')
+);
+
+// ─── POST /api/auth/complete-oauth ───────────────────────────────────────────
+
+router.post('/complete-oauth', (req, res) => {
+  const { pending_id, username } = req.body;
+  
+  if (!pending_id || !username) {
+    return res.status(400).json({ error: 'Missing requirements.' });
+  }
+  
+  if (username.length < 3 || username.length > 30) {
+    return res.status(400).json({ error: 'Username must be 3–30 characters.' });
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+    return res.status(400).json({ error: 'Username can only contain letters, numbers, hyphens, and underscores.' });
+  }
+
+  const pending = db.prepare('SELECT * FROM pending_oauth WHERE id = ?').get(pending_id);
+  if (!pending) {
+    return res.status(404).json({ error: 'Pending OAuth session not found.' });
+  }
+
+  if (findUserByUsername.get(username)) {
+    return res.status(409).json({ error: 'This username is already taken.' });
+  }
+
+  try {
+    const result = db.prepare('INSERT INTO users (username, email, oauth_provider, oauth_id) VALUES (?, ?, ?, ?)').run(
+      username, pending.email, pending.provider, pending.oauth_id
+    );
+    db.prepare('DELETE FROM pending_oauth WHERE id = ?').run(pending_id);
+    
+    const user = { id: result.lastInsertRowid, username, email: pending.email };
+    const token = signToken(user);
+    res.json({ token, user });
+  } catch (err) {
+    console.error('[auth/complete-oauth]', err.message);
+    res.status(500).json({ error: 'Failed to complete registration.' });
+  }
+});
 
 module.exports = router;
