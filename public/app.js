@@ -437,14 +437,6 @@ function openTerminalPage(os, osName, sid, isReconnect) {
     fitAddon.fit();
 
     term.onData((data) => {
-      // Local Echo: Write immediately to terminal for low latency feel.
-      // Skip for control chars (arrow keys, backspace, etc.) except Enter.
-      if (data === '\r' || data === '\n') {
-        term.write('\r\n');
-      } else if (data.charCodeAt(0) >= 32) {
-        term.write(data);
-      }
-
       // Ctrl+C: close GUI panel if open (still sends ^C to terminal below)
       if (data === '\x03') {
         const panel = document.getElementById('gui-panel');
