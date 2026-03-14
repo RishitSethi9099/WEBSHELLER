@@ -79,6 +79,49 @@ function togglePasswordVisibility() {
 
 document.addEventListener('DOMContentLoaded', async () => {
 
+  // Handle OAuth callbacks and pending username screen
+  const url = new URL(window.location.href);
+  const tokenParam = url.searchParams.get('token');
+  const pendingIdParam = url.searchParams.get('pending_id');
+
+  if (url.pathname === '/auth/callback' && tokenParam) {
+    localStorage.setItem(TOKEN_KEY, tokenParam);
+    window.history.replaceState({}, document.title, '/');
+    authToken = tokenParam;
+  } else if (url.pathname === '/auth/username-picker' && pendingIdParam) {
+    showScreen('oauth-picker');
+    const oauthForm = document.getElementById('oauth-picker-form');
+    if (oauthForm) {
+      oauthForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('oauth-username-input').value.trim();
+        const errEl = document.getElementById('oauth-error');
+        const btn = document.getElementById('oauth-submit-btn');
+        errEl.classList.add('hidden');
+        btn.disabled = true;
+
+        try {
+          const res = await fetch('/api/auth/complete-oauth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pending_id: pendingIdParam, username })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to complete setup');
+
+          localStorage.setItem(TOKEN_KEY, data.token);
+          window.history.replaceState({}, document.title, '/');
+          window.location.reload();
+        } catch (err) {
+          errEl.textContent = err.message;
+          errEl.classList.remove('hidden');
+          btn.disabled = false;
+        }
+      });
+    }
+    return; // Don't proceed to auto-login if picking a username
+  }
+
   // Wire up auth form
   document.getElementById('auth-tab-login') ?.addEventListener('click', () => switchAuthTab('login'));
   document.getElementById('auth-tab-signup')?.addEventListener('click', () => switchAuthTab('signup'));
@@ -136,6 +179,13 @@ async function resumeOrPicker() {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 let authMode = 'login';
+
+function handleGoogleAuth() {
+  window.location.href = '/api/auth/google';
+}
+function handleGithubAuth() {
+  window.location.href = '/api/auth/github';
+}
 
 function switchAuthTab(mode) {
   authMode = mode;

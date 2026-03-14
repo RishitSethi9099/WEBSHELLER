@@ -346,6 +346,11 @@ app.use(passport.session());
 
 app.use(express.static(path.join(__dirname, "public")));
 
+// Serve index.html for SPA frontend routing
+app.get(['/auth/callback', '/auth/username-picker'], (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
 server.on('upgrade', (req, socket, head) => {
   const pathname = new URL(req.url, 'http://localhost').pathname;
   

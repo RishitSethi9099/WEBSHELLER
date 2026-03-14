@@ -1917,3 +1917,49 @@ body::before {
   .os-grid { grid-template-columns: 1fr; }
   .picker-header { padding-top: 28px; }
 }
+
+/* ─── OAuth section ──────────────────────────────────────── */
+.oauth-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  margin: 4px 0;
+}
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+}
+.auth-divider span {
+  padding: 0 10px;
+}
+
+.oauth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 0;
+  background: var(--bg2);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.oauth-btn:hover {
+  background: var(--bg);
+  border-color: var(--green);
+  filter: brightness(1.1);
+}
