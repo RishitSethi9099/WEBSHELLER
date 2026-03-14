@@ -149,15 +149,6 @@ function switchAuthTab(mode) {
   setAuthError('');
 }
 
-function devBypass() {
-  // Skip auth entirely — go straight to the OS picker (demo mode).
-  authToken = null;
-  currentUser = { username: 'demo', email: 'demo@sheller.local' };
-  updateUserDisplay();
-  showSkillSurveyIfNeeded();
-  showScreen('picker');
-}
-
 async function handleAuthSubmit(e) {
   e.preventDefault();
 
